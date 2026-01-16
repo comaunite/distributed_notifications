@@ -2,5 +2,5 @@
 
 public enum NotificationType
 {
-    NewPost = 1
+    NewPost = 0
 }

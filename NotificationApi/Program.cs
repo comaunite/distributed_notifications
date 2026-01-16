@@ -1,28 +1,26 @@
 using System.Net;
 using System.Threading.RateLimiting;
+using Hosting.Middleware;
 using Integrations.RabbitMQ;
 using Microsoft.AspNetCore.RateLimiting;
 using NotificationApi.Models;
 using NotificationApi.Services;
-using RabbitMQ.Client;
 using RabbitMQTopology = Integrations.RabbitMQ.Topology;
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+builder.Logging.SetMinimumLevel(LogLevel.Information);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddOpenApi();
 
 builder.Services.AddSingleton<IRabbitMqConnectionFactory, RabbitMqConnectionFactory>();
-
 builder.Services.AddSingleton<INotificationService, NotificationService>();
-
-builder.Services.AddSingleton<IConnection>(sp =>
-{
-    var factory = sp.GetRequiredService<IRabbitMqConnectionFactory>();
-    return factory.CreateConnectionAsync(CancellationToken.None).GetAwaiter().GetResult();
-});
 
 builder.Services.AddHostedService<RabbitMQTopology.PublisherTopologyHostedService>();
 
@@ -42,11 +40,12 @@ builder.Services.AddRateLimiter(options =>
 
     options.OnRejected = async delegate(OnRejectedContext context, CancellationToken token)
     {
+        // We'd want to log some metrics here in a real-world scenario
+
         context.HttpContext.Response.StatusCode = (int)HttpStatusCode.TooManyRequests;
         await context.HttpContext.Response.WriteAsync("Rate limit exceeded. Try again later.", cancellationToken: token);
     };
 });
-
 
 var app = builder.Build();
 
@@ -56,16 +55,17 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+app.UseRateLimiter();
+
+app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 
 app.UseSwagger();
 app.UseSwaggerUI();
 
 
-app.MapPost("/send-notification", async (NotificationRequest request, INotificationService notificationService, CancellationToken ct) =>
-    {
-        await notificationService.PostNotificationAsync(request, ct);
-    })
+app.MapPost("/send-notification",
+        async (NotificationRequest request, INotificationService notificationService, CancellationToken ct) =>
+            await notificationService.PostNotificationAsync(request, ct))
     .WithName("SendNotification");
 
 app.Run();

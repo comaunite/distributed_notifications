@@ -1,28 +1,16 @@
-﻿services:
-  notificationorchestrator:
-    image: notificationorchestrator
-    build:
-      context: .
-      dockerfile: NotificationOrchestrator/Dockerfile
+﻿x-db-variables: &db-env
+  ConnectionStrings__Database: Host=postgres;Port=5432;Database=notification_db;Username=admin;Password=admin
 
-  notificationworkeremail:
-    image: notificationworker
-    build:
-      context: .
-      dockerfile: NotificationWorker.Email/Dockerfile
+x-rabbitmq-variables: &rabbit-env
+  RABBITMQ__HOST: rabbitmq
+  RABBITMQ__PORT: 5672
+  RABBITMQ__USERNAME: guest
+  RABBITMQ__PASSWORD: guest
 
-  notificationworkersms:
-    image: notificationworker
-    build:
-      context: .
-      dockerfile: NotificationWorker.SMS/Dockerfile
+x-reddis-variables: &redis-env
+  REDIS__HOST: redis:6379
 
-  notificationworkerinapp:
-    image: notificationworker
-    build:
-      context: .
-      dockerfile: NotificationWorker.InApp/Dockerfile
-
+services:
   rabbitmq:
     image: rabbitmq:3.12-management
     container_name: rabbitmq
@@ -32,20 +20,26 @@
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   postgres:
-    image: postgres:latest
+    image: postgres:17
     container_name: notification-db
     environment:
       POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password123
-      POSTGRES_DB: NotificationDb
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: notification_db
     ports:
-      - "5432:5432"
+      - "5442:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U admin -d NotificationDb" ]
+      test: [ "CMD-SHELL", "pg_isready -U admin -d notification_db" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -57,6 +51,81 @@
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+
+  api:
+    image: notificationapi
+    build:
+      context: .
+      dockerfile: NotificationApi/Dockerfile
+    container_name: notification-api
+    ports:
+      - "8080:8080"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # noinspection ComposeUnknownValues
+      <<: [ *rabbit-env, *db-env, *redis-env]
+      ASPNETCORE_URLS: http://+:8080
+
+  notificationorchestrator:
+    image: notificationorchestrator
+    build:
+      context: .
+      dockerfile: NotificationOrchestrator/Dockerfile
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # noinspection ComposeUnknownValues
+      <<: [*rabbit-env, *db-env, *redis-env]
+
+  notificationworkeremail:
+    image: notificationworker
+    build:
+      context: .
+      dockerfile: NotificationWorker.Email/Dockerfile
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      <<: *rabbit-env
+
+  notificationworkersms:
+    image: notificationworker
+    build:
+      context: .
+      dockerfile: NotificationWorker.SMS/Dockerfile
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      <<: *rabbit-env
+
+  notificationworkerinapp:
+    image: notificationworker
+    build:
+      context: .
+      dockerfile: NotificationWorker.InApp/Dockerfile
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      <<: *rabbit-env
 
 volumes:
   postgres_data:
