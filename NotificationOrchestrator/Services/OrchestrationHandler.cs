@@ -28,7 +28,7 @@ internal sealed class OrchestrationHandler(ILogger<OrchestrationHandler> logger)
     // Though for now keeping it for uniformity with other handlers,
     // where hotpath synchronous completion is possible.
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
-    public async ValueTask<(bool success, string? error)> ProcessAsync(ReadOnlyMemory<byte> body, CancellationToken cancellationToken)
+    public async ValueTask<(bool success, string? error)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken)
     {
         var message = JsonSerializer.Deserialize(body.Span,
             Integrations.RabbitMQ.Serialization.NotificationSerializationContext.Default.BaseNotification);
@@ -43,7 +43,7 @@ internal sealed class OrchestrationHandler(ILogger<OrchestrationHandler> logger)
             // TODO: Logging for debugging purposes only
             logger.LogInformation("Orchestrating notification with ID '{NotificationId}'", message.NotificationId);
 
-            await ProcessAndFanOutAsync(message);
+            await ProcessAndFanOutAsync(message, correlationId);
 
             return (true, null);
         }
@@ -55,7 +55,7 @@ internal sealed class OrchestrationHandler(ILogger<OrchestrationHandler> logger)
         }
     }
 
-    private async Task ProcessAndFanOutAsync(BaseNotification message)
+    private async Task ProcessAndFanOutAsync(BaseNotification message, string? correlationId)
     {
         // Get the users subscribed to this notification type
 
@@ -101,7 +101,7 @@ internal sealed class OrchestrationHandler(ILogger<OrchestrationHandler> logger)
             CancellationToken = CancellationToken.None
         };
 
-        await Parallel.ForEachAsync(users, options, async (user, ct) =>
+        await Parallel.ForEachAsync(users, options, async (user, cancellationToken) =>
         {
             // Process each channel for the user
             foreach (var channelType in user.PreferredChannels)
@@ -142,7 +142,7 @@ internal sealed class OrchestrationHandler(ILogger<OrchestrationHandler> logger)
 
                 if (notification != null)
                 {
-                    var (success, error) = await publisher!.PublishAsync(notification, ct);
+                    var (success, error) = await publisher!.PublishAsync(notification, correlationId, cancellationToken);
 
                     if (!success)
                     {

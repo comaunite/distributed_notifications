@@ -1,8 +1,7 @@
 namespace NotificationApi.Models;
 
-internal sealed record Result(bool IsSuccess, string? ErrorMessage = null)
+internal record Result
 {
-    public static Result Success() => new(true);
-
-    public static Result Failure(string errorMessage) => new(false, errorMessage);
+    public bool Success { get; init; }
+    public string? ErrorMessage { get; init; }
 }

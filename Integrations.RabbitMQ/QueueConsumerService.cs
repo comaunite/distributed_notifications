@@ -99,7 +99,7 @@ public sealed class QueueConsumerService<T>(IRabbitMqConnectionFactory connectio
 
         try
         {
-            var result = await handler.ProcessAsync(args.Body, CancellationToken.None);
+            var result = await handler.ProcessAsync(args.Body, args.BasicProperties.CorrelationId, CancellationToken.None);
 
             if (!result.success)
             {

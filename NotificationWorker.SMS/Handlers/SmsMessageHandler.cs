@@ -9,7 +9,7 @@ internal sealed class SmsMessageHandler(ILogger<SmsMessageHandler> logger) : IMe
 {
     public string QueueName => Constants.Queues.SmsWorker;
 
-    public ValueTask<(bool success, string? error)> ProcessAsync(ReadOnlyMemory<byte> body, CancellationToken cancellationToken)
+    public ValueTask<(bool success, string? error)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken)
     {
         var message = JsonSerializer.Deserialize(body.Span,
             Integrations.RabbitMQ.Serialization.NotificationSerializationContext.Default.NotifySms);

@@ -9,7 +9,7 @@ internal sealed class PushMessageHandler(ILogger<PushMessageHandler> logger) : I
 {
     public string QueueName => Constants.Queues.PushWorker;
 
-    public ValueTask<(bool success, string? error)> ProcessAsync(ReadOnlyMemory<byte> body, CancellationToken cancellationToken)
+    public ValueTask<(bool success, string? error)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken)
     {
         var message = JsonSerializer.Deserialize(body.Span,
             Integrations.RabbitMQ.Serialization.NotificationSerializationContext.Default.NotifyPush);

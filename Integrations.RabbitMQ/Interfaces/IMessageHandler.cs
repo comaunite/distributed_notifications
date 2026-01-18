@@ -4,5 +4,5 @@ public interface IMessageHandler
 {
     string QueueName { get; }
 
-    ValueTask<(bool success, string? error)> ProcessAsync(ReadOnlyMemory<byte> body, CancellationToken cancellationToken);
+    ValueTask<(bool success, string? error)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken);
 }

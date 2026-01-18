@@ -8,27 +8,36 @@ namespace NotificationApi.Services;
 
 internal interface INotificationService
 {
-    Task<Result> PostNotificationAsync(NotificationRequest request, CancellationToken ct);
+    Task<NotificationResponse> PostNotificationAsync(NotificationRequest request, CancellationToken cancellationToken);
 }
 
 internal sealed class NotificationService(IRabbitMqConnectionFactory connectionFactory) : INotificationService
 {
-    public async Task<Result> PostNotificationAsync(NotificationRequest request, CancellationToken ct)
+    public async Task<NotificationResponse> PostNotificationAsync(NotificationRequest request, CancellationToken cancellationToken)
     {
-        await using var connection = await connectionFactory.CreateConnectionAsync(ct);
-        await using var channel = await connection.CreateChannelAsync(null, ct);
+        await using var connection = await connectionFactory.CreateConnectionAsync(cancellationToken);
+        await using var channel = await connection.CreateChannelAsync(null, cancellationToken);
 
         var publisher = new RabbitMqPublisher(channel, Constants.Exchange);
 
-        var result = await publisher.PublishAsync(new NotificationCreated
-        {
-            NotificationId = Guid.NewGuid(),
-            Type =  request.Type,
-            CreatedAt = DateTimeOffset.UtcNow
-        }, ct);
+        var correlationId = Guid.NewGuid();
 
-        return result.success
-            ? Result.Success()
-            : Result.Failure(result.errorMessage ?? "Unknown error occurred while publishing notification");
+        var notification = new NotificationCreated
+        {
+            NotificationId = correlationId,
+            Type = request.Type,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        var result = await publisher.PublishAsync(notification, correlationId.ToString(), cancellationToken);
+
+        return new NotificationResponse
+        {
+            Success = result.success,
+            ErrorMessage = !result.success
+                ? result.errorMessage ?? "Unknown error occurred while publishing notificatio"
+                : null,
+            CorrelationId = correlationId,
+        };
     }
 }

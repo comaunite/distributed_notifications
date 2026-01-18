@@ -9,7 +9,7 @@ namespace Integrations.RabbitMQ.Publishers;
 public class RabbitMqPublisher(IChannel channel, string exchangeName)
 {
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
-    public async Task<(bool success, string? errorMessage)> PublishAsync<T>(T message, CancellationToken cancellationToken)
+    public async Task<(bool success, string? errorMessage)> PublishAsync<T>(T message, string? correlationId, CancellationToken cancellationToken)
         where T : BaseNotification
     {
         try
@@ -26,6 +26,7 @@ public class RabbitMqPublisher(IChannel channel, string exchangeName)
                 Persistent = false, // For demo purposes I don't want to persist messages
                 ContentType = "application/json",
                 MessageId = message.NotificationId.ToString(),
+                CorrelationId = correlationId,
                 Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds())
             };
 

@@ -38,12 +38,12 @@ builder.Services.AddRateLimiter(options =>
         )
     );
 
-    options.OnRejected = async delegate(OnRejectedContext context, CancellationToken token)
+    options.OnRejected = async delegate(OnRejectedContext context, CancellationToken cancellationToken)
     {
         // We'd want to log some metrics here in a real-world scenario
 
         context.HttpContext.Response.StatusCode = (int)HttpStatusCode.TooManyRequests;
-        await context.HttpContext.Response.WriteAsync("Rate limit exceeded. Try again later.", cancellationToken: token);
+        await context.HttpContext.Response.WriteAsync("Rate limit exceeded. Try again later.", cancellationToken);
     };
 });
 
@@ -64,8 +64,8 @@ app.UseSwaggerUI();
 
 
 app.MapPost("/send-notification",
-        async (NotificationRequest request, INotificationService notificationService, CancellationToken ct) =>
-            await notificationService.PostNotificationAsync(request, ct))
+        async (NotificationRequest request, INotificationService notificationService, CancellationToken cancellationToken) =>
+            await notificationService.PostNotificationAsync(request, cancellationToken))
     .WithName("SendNotification");
 
 app.Run();

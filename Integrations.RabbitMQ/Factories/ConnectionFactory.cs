@@ -7,12 +7,12 @@ namespace Integrations.RabbitMQ.Factories;
 
 public interface IRabbitMqConnectionFactory
 {
-    Task<IConnection> CreateConnectionAsync(CancellationToken ct);
+    Task<IConnection> CreateConnectionAsync(CancellationToken cancellationToken);
 }
 
 public class RabbitMqConnectionFactory(IConfiguration configuration, ILogger<RabbitMqConnectionFactory> logger) : IRabbitMqConnectionFactory
 {
-    public async Task<IConnection> CreateConnectionAsync(CancellationToken ct)
+    public async Task<IConnection> CreateConnectionAsync(CancellationToken cancellationToken)
     {
         var factory = new ConnectionFactory
         {
@@ -30,13 +30,13 @@ public class RabbitMqConnectionFactory(IConfiguration configuration, ILogger<Rab
         {
             try
             {
-                return await factory.CreateConnectionAsync(ct);
+                return await factory.CreateConnectionAsync(cancellationToken);
             }
             catch (BrokerUnreachableException) when (retryCount < 5)
             {
                 retryCount++;
                 logger.LogWarning("RabbitMQ not ready. Retrying in 5s... (Attempt {Count}/5)", retryCount);
-                await Task.Delay(5000, ct);
+                await Task.Delay(5000, cancellationToken);
             }
         }
     }
