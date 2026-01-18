@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
 
-namespace Integrations.RabbitMQ;
+namespace Integrations.RabbitMQ.Factories;
 
 public interface IRabbitMqConnectionFactory
 {
@@ -19,7 +19,9 @@ public class RabbitMqConnectionFactory(IConfiguration configuration, ILogger<Rab
             HostName = configuration["RabbitMQ:Host"] ?? "localhost",
             Port = int.Parse(configuration["RabbitMQ:Port"] ?? "5672"),
             UserName = configuration["RabbitMQ:Username"] ?? "guest",
-            Password = configuration["RabbitMQ:Password"] ?? "guest"
+            Password = configuration["RabbitMQ:Password"] ?? "guest",
+            AutomaticRecoveryEnabled = true,
+            NetworkRecoveryInterval = TimeSpan.FromSeconds(5)
         };
 
         // TODO: Rewrite in Polly

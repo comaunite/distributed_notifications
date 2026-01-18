@@ -1,7 +1,12 @@
+using System.Text.Json.Serialization;
 using Common;
 
 namespace Integrations.RabbitMQ.Models.Base;
 
+[JsonDerivedType(typeof(NotificationCreated), typeDiscriminator: "created")]
+[JsonDerivedType(typeof(NotifyEmail), typeDiscriminator: "email")]
+[JsonDerivedType(typeof(NotifySms), typeDiscriminator: "sms")]
+[JsonDerivedType(typeof(NotifyPush), typeDiscriminator: "push")]
 public record BaseNotification
 {
     public required Guid NotificationId { get; init; }

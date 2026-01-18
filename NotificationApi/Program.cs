@@ -1,7 +1,7 @@
 using System.Net;
 using System.Threading.RateLimiting;
 using Hosting.Middleware;
-using Integrations.RabbitMQ;
+using Integrations.RabbitMQ.Factories;
 using Microsoft.AspNetCore.RateLimiting;
 using NotificationApi.Models;
 using NotificationApi.Services;

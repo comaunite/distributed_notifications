@@ -1,5 +1,7 @@
 ﻿using Integrations.RabbitMQ;
+using Integrations.RabbitMQ.Factories;
 using Integrations.RabbitMQ.Models;
+using Integrations.RabbitMQ.Publishers;
 using NotificationApi.Models;
 
 namespace NotificationApi.Services;

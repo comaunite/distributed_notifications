@@ -4,7 +4,7 @@
         <InvariantGlobalization>true</InvariantGlobalization>
         <LangVersion>preview</LangVersion>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-        <NoWarn>CS1591,CA2007,CA1034,CA2007,CA1848</NoWarn>
+        <NoWarn>CS1591,CA2007,CA1034,CA2007,CA1848,CA1812</NoWarn>
         <Nullable>enable</Nullable>
         <AnalysisLevel>latest</AnalysisLevel>
         <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>

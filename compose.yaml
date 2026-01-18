@@ -116,11 +116,11 @@ services:
     environment:
       <<: *rabbit-env
 
-  notificationworkerinapp:
+  notificationworkerpush:
     image: notificationworker
     build:
       context: .
-      dockerfile: NotificationWorker.InApp/Dockerfile
+      dockerfile: NotificationWorker.Push/Dockerfile
     depends_on:
       rabbitmq:
         condition: service_healthy

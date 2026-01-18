@@ -3,6 +3,7 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        <RootNamespace>NotificationWorker.Push</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>

@@ -21,7 +21,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Integrations.RabbitMQ", "In
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotificationWorker.SMS", "NotificationWorker.SMS\NotificationWorker.SMS.csproj", "{829AEC1C-76BE-47B6-981A-C1D8F2FFA965}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotificationWorker.InApp", "NotificationWorker.InApp\NotificationWorker.InApp.csproj", "{E25841D7-0834-4D4F-B54E-554DDB0864EE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotificationWorker.Push", "NotificationWorker.Push\NotificationWorker.Push.csproj", "{E25841D7-0834-4D4F-B54E-554DDB0864EE}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Database", "Database\Database.csproj", "{9D93E75D-C09B-4360-95FB-DA3E05948688}"
 EndProject

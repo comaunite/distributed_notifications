@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using Integrations.RabbitMQ.Factories;
+using Microsoft.Extensions.Hosting;
 using RabbitMQ.Client;
 
 namespace Integrations.RabbitMQ.Topology;
@@ -8,7 +9,11 @@ public sealed class PublisherTopologyHostedService(IRabbitMqConnectionFactory co
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await using var connection = await connectionFactory.CreateConnectionAsync(cancellationToken);
-        await using var channel = await connection.CreateChannelAsync(null, cancellationToken);
+        await using var channel = await connection.CreateChannelAsync(
+            new CreateChannelOptions(
+                publisherConfirmationsEnabled: true,
+                publisherConfirmationTrackingEnabled: true
+            ), cancellationToken);
 
         await channel.ExchangeDeclareAsync(
             exchange: Constants.Exchange,

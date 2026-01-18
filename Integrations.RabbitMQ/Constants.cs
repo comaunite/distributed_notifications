@@ -9,7 +9,7 @@ public static class Constants
         public const string NotificationCreated = "notification.created";
         public const string SendEmail = "notification.send.email";
         public const string SendSms = "notification.send.sms";
-        public const string SendInApp = "notification.send.inapp";
+        public const string SendPush = "notification.send.push";
     }
 
     public static class Queues
@@ -17,6 +17,6 @@ public static class Constants
         public const string Orchestrator = "notifications.orchestrator";
         public const string EmailWorker = "notifications.worker.email";
         public const string SmsWorker = "notifications.worker.sms";
-        public const string InAppWorker = "notifications.worker.inapp";
+        public const string PushWorker = "notifications.worker.push";
     }
 }
