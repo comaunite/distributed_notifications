@@ -1,9 +1,9 @@
-using Database.HostingExtensions;
 using Hosting.Extensions;
 using Hosting.Middleware;
 using Integrations.RabbitMQ.Factories;
 using NotificationApi.Models;
 using NotificationApi.Services;
+using Persistence.Postgres.HostingExtensions;
 using RabbitMQTopology = Integrations.RabbitMQ.Topology;
 
 

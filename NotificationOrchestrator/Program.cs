@@ -1,10 +1,10 @@
-﻿using Database.HostingExtensions;
-using Hosting.Extensions;
+﻿using Hosting.Extensions;
 using Integrations.RabbitMQ;
 using Integrations.RabbitMQ.Factories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NotificationOrchestrator.Services;
+using Persistence.Postgres.HostingExtensions;
 using RabbitMQTopology = Integrations.RabbitMQ.Topology;
 
 var builder = Host.CreateApplicationBuilder();

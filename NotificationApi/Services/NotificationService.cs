@@ -1,11 +1,11 @@
-﻿using Database;
-using Integrations.RabbitMQ;
+﻿using Integrations.RabbitMQ;
 using Integrations.RabbitMQ.Factories;
 using Integrations.RabbitMQ.Models;
 using Integrations.RabbitMQ.Publishers;
 using NotificationApi.Models;
 using Persistence.Models.Entities;
-using Persistence.Stores.Interfaces;
+using Persistence.Postgres;
+using Persistence.Stores;
 
 namespace NotificationApi.Services;
 

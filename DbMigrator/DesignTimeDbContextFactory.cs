@@ -1,9 +1,9 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
+using Persistence.Postgres;
 
 namespace DbMigrator;
 

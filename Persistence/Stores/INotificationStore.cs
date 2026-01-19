@@ -1,6 +1,6 @@
 using Persistence.Models.Entities;
 
-namespace Persistence.Stores.Interfaces;
+namespace Persistence.Stores;
 
 public interface INotificationStore
 {

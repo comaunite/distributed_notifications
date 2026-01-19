@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Persistence.Models.Entities;
 
-namespace Database;
+namespace Persistence.Postgres;
 
 /// <summary>
 /// I realize that postgres isn't the optimal choice for a database with the proposed number of posts, comments, users, and notifications.

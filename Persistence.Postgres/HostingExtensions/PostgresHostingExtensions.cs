@@ -4,10 +4,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Persistence.Stores.Interfaces;
-using Persistence.Stores.Postgres;
+using Persistence.Postgres.Stores;
+using Persistence.Stores;
 
-namespace Database.HostingExtensions;
+namespace Persistence.Postgres.HostingExtensions;
 
 public static class PostgresHostingExtensions
 {

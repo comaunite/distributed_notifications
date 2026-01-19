@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Persistence.Models.Entities;
 
-namespace Database;
+namespace Persistence.Postgres;
 
 public partial class NotificationDbContext
 {

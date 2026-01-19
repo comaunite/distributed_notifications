@@ -1,4 +1,4 @@
-namespace Database;
+namespace Persistence.Postgres;
 
 public interface IUnitOfWork
 {
