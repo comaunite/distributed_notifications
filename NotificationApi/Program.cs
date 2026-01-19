@@ -16,9 +16,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddOpenApi();
 
 builder.Services.AddSingleton<IRabbitMqConnectionFactory, RabbitMqConnectionFactory>();
-builder.Services.AddSingleton<INotificationService, NotificationService>();
-
 builder.Services.AddHostedService<RabbitMQTopology.PublisherTopologyHostedService>();
+
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 builder.AddRateLimiter();
 builder.AddPostgresDatabase();

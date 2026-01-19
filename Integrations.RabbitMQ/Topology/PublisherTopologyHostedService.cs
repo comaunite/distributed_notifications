@@ -9,11 +9,7 @@ public sealed class PublisherTopologyHostedService(IRabbitMqConnectionFactory co
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await using var connection = await connectionFactory.CreateConnectionAsync(cancellationToken);
-        await using var channel = await connection.CreateChannelAsync(
-            new CreateChannelOptions(
-                publisherConfirmationsEnabled: true,
-                publisherConfirmationTrackingEnabled: true
-            ), cancellationToken);
+        await using var channel = await connection.CreateChannelAsync(null, cancellationToken);
 
         await channel.ExchangeDeclareAsync(
             exchange: Constants.Exchange,
