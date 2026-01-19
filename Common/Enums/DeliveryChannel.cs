@@ -1,4 +1,4 @@
-namespace Database;
+namespace Common.Enums;
 
 public enum DeliveryChannel
 {

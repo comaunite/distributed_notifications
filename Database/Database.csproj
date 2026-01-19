@@ -2,6 +2,17 @@
 
     <ItemGroup>
       <PackageReference Include="Microsoft.EntityFrameworkCore" />
+      <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Common\Common.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Update="NotificationDbContext.ModelMapper.cs">
+        <DependentUpon>NotificationDbContext.cs</DependentUpon>
+      </Compile>
     </ItemGroup>
 
 </Project>

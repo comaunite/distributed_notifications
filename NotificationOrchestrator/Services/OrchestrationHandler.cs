@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Common;
+using Common.Enums;
 using Database;
 using Integrations.RabbitMQ.Interfaces;
 using Integrations.RabbitMQ.Models;

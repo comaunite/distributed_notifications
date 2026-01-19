@@ -58,6 +58,18 @@ services:
       retries: 5
 
 
+  dbmigrator:
+    image: dbmigrator
+    build:
+      context: .
+      dockerfile: DbMigrator/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # noinspection ComposeUnknownValues
+      <<: [ *db-env ]
+
   api:
     image: notificationapi
     build:

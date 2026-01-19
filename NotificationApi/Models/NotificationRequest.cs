@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
-using Common;
+using Common.Enums;
 
 namespace NotificationApi.Models;
 
