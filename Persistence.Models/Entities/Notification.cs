@@ -1,11 +1,11 @@
 using Common.Enums;
-using Database.Models.Interfaces;
+using Persistence.Models.Entities.Interfaces;
 
-namespace Database.Models;
+namespace Persistence.Models.Entities;
 
 public class Notification : ITimeStamped
 {
-    public required Guid Id { get; init; }
+    public required Guid Id { get; init; } = Guid.CreateVersion7();
     public required NotificationType Type { get; set; }
 
     public DateTime CreatedUtc { get; set; }

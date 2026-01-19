@@ -1,4 +1,4 @@
-namespace Database.Models.Interfaces;
+namespace Persistence.Models.Entities.Interfaces;
 
 public interface ITimeStamped
 {

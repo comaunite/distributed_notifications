@@ -4,7 +4,7 @@
         <InvariantGlobalization>true</InvariantGlobalization>
         <LangVersion>preview</LangVersion>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-        <NoWarn>CS1591,CA2007,CA1034,CA2007,CA1848,CA1812</NoWarn>
+        <NoWarn>CS1591,CA2007,CA1034,CA2007,CA1848,CA1812,CA1062</NoWarn>
         <Nullable>enable</Nullable>
         <AnalysisLevel>latest</AnalysisLevel>
         <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
@@ -16,7 +16,4 @@
         <AnalysisMode>All</AnalysisMode>
         <Version>1.0</Version>
     </PropertyGroup>
-<!--    <PropertyGroup Condition="'$(DOTNET_RUNNING_IN_CONTAINER)' != 'true'">-->
-<!--        <ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>-->
-<!--    </PropertyGroup>-->
 </Project>

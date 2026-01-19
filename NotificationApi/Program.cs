@@ -1,8 +1,7 @@
-using System.Net;
-using System.Threading.RateLimiting;
+using Database.HostingExtensions;
+using Hosting.Extensions;
 using Hosting.Middleware;
 using Integrations.RabbitMQ.Factories;
-using Microsoft.AspNetCore.RateLimiting;
 using NotificationApi.Models;
 using NotificationApi.Services;
 using RabbitMQTopology = Integrations.RabbitMQ.Topology;
@@ -10,10 +9,7 @@ using RabbitMQTopology = Integrations.RabbitMQ.Topology;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.AddDebug();
-builder.Logging.SetMinimumLevel(LogLevel.Information);
+builder.AddApiLogging();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -24,28 +20,8 @@ builder.Services.AddSingleton<INotificationService, NotificationService>();
 
 builder.Services.AddHostedService<RabbitMQTopology.PublisherTopologyHostedService>();
 
-builder.Services.AddRateLimiter(options =>
-{
-    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-        RateLimitPartition.GetSlidingWindowLimiter(
-            partitionKey: GetPartitionKey(httpContext),
-            factory: _ => new SlidingWindowRateLimiterOptions
-            {
-                Window = TimeSpan.FromSeconds(30),
-                PermitLimit = 10,
-                SegmentsPerWindow = 3
-            }
-        )
-    );
-
-    options.OnRejected = async delegate(OnRejectedContext context, CancellationToken cancellationToken)
-    {
-        // We'd want to log some metrics here in a real-world scenario
-
-        context.HttpContext.Response.StatusCode = (int)HttpStatusCode.TooManyRequests;
-        await context.HttpContext.Response.WriteAsync("Rate limit exceeded. Try again later.", cancellationToken);
-    };
-});
+builder.AddRateLimiter();
+builder.AddPostgresDatabase();
 
 var app = builder.Build();
 
@@ -56,12 +32,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseRateLimiter();
-
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 
 app.UseSwagger();
 app.UseSwaggerUI();
-
 
 app.MapPost("/send-notification",
         async (NotificationRequest request, INotificationService notificationService, CancellationToken cancellationToken) =>
@@ -69,9 +43,3 @@ app.MapPost("/send-notification",
     .WithName("SendNotification");
 
 app.Run();
-return;
-
-// Ideally, we want to be smart here and block only specific clients that are spamming requests
-// instead of blocking all clients when the global limit is reached.
-// However, for simplicity, we are using a path-based global rate limit in this example.
-static string GetPartitionKey(HttpContext context) => context.Request.Path;

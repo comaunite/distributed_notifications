@@ -1,13 +1,13 @@
 using System.Diagnostics.CodeAnalysis;
-using Database.Models.Interfaces;
+using Persistence.Models.Entities.Interfaces;
 
-namespace Database.Models;
+namespace Persistence.Models.Entities;
 
 [SuppressMessage("Usage", "CA2227:Collection properties should be read only")]
 [SuppressMessage("ReSharper", "EntityFramework.ModelValidation.CircularDependency")]
 public class User : ITimeStamped
 {
-    public required Guid Id { get; init; }
+    public required Guid Id { get; init; } = Guid.CreateVersion7();
     public required string Username { get; init; }
     public required string Email { get; set; }
     public string? PhoneNumber { get; set; }

@@ -1,6 +1,6 @@
 using Common.Enums;
 
-namespace Database.Models;
+namespace Persistence.Models.Entities;
 
 /// <summary>
 /// Only store the difference with default notification preferences

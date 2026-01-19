@@ -1,5 +1,5 @@
-using Database.Models;
 using Microsoft.EntityFrameworkCore;
+using Persistence.Models.Entities;
 
 namespace Database;
 
@@ -26,6 +26,7 @@ public partial class NotificationDbContext
                 .HasMaxLength(20);
 
             entity.Property(e => e.CreatedUtc)
+                .HasDefaultValueSql("now() at time zone 'utc'")
                 .IsRequired();
 
             entity.HasMany(e => e.NotificationPreferences)
@@ -60,6 +61,7 @@ public partial class NotificationDbContext
                 .HasMaxLength(5000);
 
             entity.Property(e => e.CreatedUtc)
+                .HasDefaultValueSql("now() at time zone 'utc'")
                 .IsRequired();
 
             entity.HasMany(e => e.Comments)
@@ -89,6 +91,7 @@ public partial class NotificationDbContext
                 .HasMaxLength(2000);
 
             entity.Property(e => e.CreatedUtc)
+                .HasDefaultValueSql("now() at time zone 'utc'")
                 .IsRequired();
         });
 
@@ -120,6 +123,7 @@ public partial class NotificationDbContext
                 .HasMaxLength(4000);
 
             entity.Property(e => e.CreatedUtc)
+                .HasDefaultValueSql("now() at time zone 'utc'")
                 .IsRequired();
         });
 

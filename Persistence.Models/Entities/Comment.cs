@@ -1,10 +1,10 @@
-using Database.Models.Interfaces;
+using Persistence.Models.Entities.Interfaces;
 
-namespace Database.Models;
+namespace Persistence.Models.Entities;
 
 public class Comment : ITimeStamped
 {
-    public required Guid Id { get; init; }
+    public required Guid Id { get; init; } = Guid.CreateVersion7();
     public required Guid PostId { get; init; }
     public required Guid UserId { get; init; }
 

@@ -1,5 +1,4 @@
 using Common.Enums;
-using Database;
 
 namespace NotificationOrchestrator.Models;
 

@@ -27,7 +27,8 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Database\Database.csproj" />
+      <ProjectReference Include="..\Hosting\Hosting.csproj" />
+      <ProjectReference Include="..\Persistence.Postgres\Persistence.Postgres.csproj" />
       <ProjectReference Include="..\Integrations.RabbitMQ\Integrations.RabbitMQ.csproj" />
     </ItemGroup>
 

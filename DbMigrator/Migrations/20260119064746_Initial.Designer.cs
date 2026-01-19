@@ -25,7 +25,7 @@ namespace DbMigrator.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Database.Models.Comment", b =>
+            modelBuilder.Entity("Persistence.Postgres.Models.Comment", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
@@ -56,7 +56,7 @@ namespace DbMigrator.Migrations
                     b.ToTable("Comments");
                 });
 
-            modelBuilder.Entity("Database.Models.DefaultNotificationPreference", b =>
+            modelBuilder.Entity("Persistence.Postgres.Models.DefaultNotificationPreference", b =>
                 {
                     b.Property<int>("NotificationType")
                         .HasColumnType("integer");
@@ -72,7 +72,7 @@ namespace DbMigrator.Migrations
                     b.ToTable("DefaultNotificationPreferences");
                 });
 
-            modelBuilder.Entity("Database.Models.Notification", b =>
+            modelBuilder.Entity("Persistence.Postgres.Models.Notification", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
@@ -95,7 +95,7 @@ namespace DbMigrator.Migrations
                     b.ToTable("Notifications");
                 });
 
-            modelBuilder.Entity("Database.Models.Post", b =>
+            modelBuilder.Entity("Persistence.Postgres.Models.Post", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
@@ -121,7 +121,7 @@ namespace DbMigrator.Migrations
                     b.ToTable("Posts");
                 });
 
-            modelBuilder.Entity("Database.Models.Reaction", b =>
+            modelBuilder.Entity("Persistence.Postgres.Models.Reaction", b =>
                 {
                     b.Property<Guid>("PostId")
                         .HasColumnType("uuid");
@@ -139,7 +139,7 @@ namespace DbMigrator.Migrations
                     b.ToTable("Reactions");
                 });
 
-            modelBuilder.Entity("Database.Models.User", b =>
+            modelBuilder.Entity("Persistence.Postgres.Models.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
@@ -169,7 +169,7 @@ namespace DbMigrator.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("Database.Models.UserNotificationPreference", b =>
+            modelBuilder.Entity("Persistence.Postgres.Models.UserNotificationPreference", b =>
                 {
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
@@ -188,15 +188,15 @@ namespace DbMigrator.Migrations
                     b.ToTable("UserNotificationPreferences");
                 });
 
-            modelBuilder.Entity("Database.Models.Comment", b =>
+            modelBuilder.Entity("Persistence.Postgres.Models.Comment", b =>
                 {
-                    b.HasOne("Database.Models.Post", "Post")
+                    b.HasOne("Persistence.Postgres.Models.Post", "Post")
                         .WithMany("Comments")
                         .HasForeignKey("PostId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Database.Models.User", "User")
+                    b.HasOne("Persistence.Postgres.Models.User", "User")
                         .WithMany("Comments")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -207,9 +207,9 @@ namespace DbMigrator.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Database.Models.Post", b =>
+            modelBuilder.Entity("Persistence.Postgres.Models.Post", b =>
                 {
-                    b.HasOne("Database.Models.User", "User")
+                    b.HasOne("Persistence.Postgres.Models.User", "User")
                         .WithMany("Posts")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -218,15 +218,15 @@ namespace DbMigrator.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Database.Models.Reaction", b =>
+            modelBuilder.Entity("Persistence.Postgres.Models.Reaction", b =>
                 {
-                    b.HasOne("Database.Models.Post", "Post")
+                    b.HasOne("Persistence.Postgres.Models.Post", "Post")
                         .WithMany("Reactions")
                         .HasForeignKey("PostId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Database.Models.User", "User")
+                    b.HasOne("Persistence.Postgres.Models.User", "User")
                         .WithMany("Reactions")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -237,9 +237,9 @@ namespace DbMigrator.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Database.Models.UserNotificationPreference", b =>
+            modelBuilder.Entity("Persistence.Postgres.Models.UserNotificationPreference", b =>
                 {
-                    b.HasOne("Database.Models.User", "User")
+                    b.HasOne("Persistence.Postgres.Models.User", "User")
                         .WithMany("NotificationPreferences")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -248,14 +248,14 @@ namespace DbMigrator.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Database.Models.Post", b =>
+            modelBuilder.Entity("Persistence.Postgres.Models.Post", b =>
                 {
                     b.Navigation("Comments");
 
                     b.Navigation("Reactions");
                 });
 
-            modelBuilder.Entity("Database.Models.User", b =>
+            modelBuilder.Entity("Persistence.Postgres.Models.User", b =>
                 {
                     b.Navigation("Comments");
 

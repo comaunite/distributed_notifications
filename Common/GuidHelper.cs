@@ -9,13 +9,13 @@ public static class GuidHelper
 {
     [SuppressMessage("Security", "CA5350:Do Not Use Weak Cryptographic Algorithms",
         Justification = "SHA1 is required for UUIDv5 generation. Weak algorithm isn't a flaw here.")]
-    public static Guid CreateDeterministic(Guid namespaceId, Guid userId, int channelType)
+    public static Guid CreateDeterministic(Guid notificationId, Guid userId, int channelType)
     {
-        // 16 bytes for namespaceId + 16 bytes for userId + 4 bytes for channel int = 36 bytes
+        // 16 bytes for notificationId + 16 bytes for userId + 4 bytes for channel int = 36 bytes
         Span<byte> input = stackalloc byte[36];
 
         // Write IDs directly to the stack buffer as bytes (avoiding strings entirely)
-        MemoryMarshal.TryWrite(input[..16], in namespaceId);
+        MemoryMarshal.TryWrite(input[..16], in notificationId);
         MemoryMarshal.TryWrite(input[16..32], in userId);
         BinaryPrimitives.WriteInt32LittleEndian(input[32..], channelType);
 

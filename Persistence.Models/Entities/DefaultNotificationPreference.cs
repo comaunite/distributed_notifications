@@ -1,6 +1,6 @@
 using Common.Enums;
 
-namespace Database.Models;
+namespace Persistence.Models.Entities;
 
 public class DefaultNotificationPreference
 {

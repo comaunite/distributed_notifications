@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using Common;
 using Common.Enums;
 
 namespace Integrations.RabbitMQ.Models.Base;
