@@ -1,10 +1,12 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using Integrations.RabbitMQ;
 using Microsoft.Extensions.Logging;
 using Constants = Integrations.RabbitMQ.Constants;
 
 namespace NotificationWorker.Email.Handlers;
 
+[SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 internal sealed class EmailMessageHandler(ILogger<EmailMessageHandler> logger) : IMessageHandler
 {
     public string QueueName => Constants.Queues.EmailWorker;

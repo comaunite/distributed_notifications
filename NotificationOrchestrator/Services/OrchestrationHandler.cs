@@ -11,6 +11,7 @@ using Constants = Integrations.RabbitMQ.Constants;
 
 namespace NotificationOrchestrator.Services;
 
+[SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 internal sealed class OrchestrationHandler(IRabbitMqPublisher publisher, ILogger<OrchestrationHandler> logger) : IMessageHandler
 {
     public string QueueName => Constants.Queues.Orchestrator;

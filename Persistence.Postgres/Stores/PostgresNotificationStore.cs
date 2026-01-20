@@ -4,11 +4,11 @@ using Persistence.Stores;
 
 namespace Persistence.Postgres.Stores;
 
-public class PostgresNotificationStore(NotificationDbContext context) : INotificationStore
+public class PostgresNotificationStore(NotificationDbContext context, ReadOnlyNotificationDbContext readOnlyContext) : INotificationStore
 {
     public async Task<Notification?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
-        return await context.Notifications
+        return await readOnlyContext.Notifications
             .AsNoTracking()
             .FirstOrDefaultAsync(n => n.Id == id, cancellationToken);
     }
