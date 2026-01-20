@@ -18,7 +18,7 @@ builder.Services.AddHostedService<RabbitMQTopology.OrchestratorTopologyHostedSer
 builder.Services.AddSingleton<OrchestrationHandler>();
 builder.Services.AddHostedService<QueueConsumerService<OrchestrationHandler>>();
 
-builder.AddPostgresDatabase();
+builder.AddPostgresDatabase(withReadonlyReplica: false);
 
 using var app = builder.Build();
 

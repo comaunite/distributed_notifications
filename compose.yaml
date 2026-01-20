@@ -1,5 +1,6 @@
 ﻿x-db-variables: &db-env
   ConnectionStrings__Database: Host=postgres;Port=5432;Database=notification_db;Username=admin;Password=admin
+  ConnectionStrings__ReadOnlyDatabase: Host=postgres;Port=5432;Database=notification_db;Username=admin;Password=admin
 
 x-rabbitmq-variables: &rabbit-env
   RABBITMQ__HOST: rabbitmq
