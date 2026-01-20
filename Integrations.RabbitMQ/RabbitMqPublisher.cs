@@ -4,10 +4,26 @@ using Integrations.RabbitMQ.Models.Base;
 using Integrations.RabbitMQ.Serialization;
 using RabbitMQ.Client;
 
-namespace Integrations.RabbitMQ.Publishers;
+namespace Integrations.RabbitMQ;
 
-public class RabbitMqPublisher(IChannel channel, string exchangeName)
+public interface IRabbitMqPublisher
 {
+    Task<(bool success, string? errorMessage)> PublishAsync<T>(T message, string? correlationId, CancellationToken cancellationToken)
+        where T : BaseNotification;
+}
+
+public class RabbitMqPublisher(RabbitMqChannelPool channelPool) : IRabbitMqPublisher, IAsyncDisposable
+{
+    private IChannel? channel;
+
+    private static readonly Dictionary<Type, string> routingKeyMap = new()
+    {
+        [typeof(NotificationCreated)] = Constants.RoutingKeys.NotificationCreated,
+        [typeof(NotifyEmail)] = Constants.RoutingKeys.SendEmail,
+        [typeof(NotifySms)] = Constants.RoutingKeys.SendSms,
+        [typeof(NotifyPush)] = Constants.RoutingKeys.SendPush
+    };
+
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
     public async Task<(bool success, string? errorMessage)> PublishAsync<T>(T message, string? correlationId, CancellationToken cancellationToken)
         where T : BaseNotification
@@ -15,6 +31,8 @@ public class RabbitMqPublisher(IChannel channel, string exchangeName)
         try
         {
             ArgumentNullException.ThrowIfNull(message);
+
+            await EnsureChannelAsync(cancellationToken);
 
             var body = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(
                 message,
@@ -30,31 +48,30 @@ public class RabbitMqPublisher(IChannel channel, string exchangeName)
                 Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds())
             };
 
-            await channel.BasicPublishAsync(
-                exchange: exchangeName,
+            await channel!.BasicPublishAsync(
+                exchange: Constants.Exchange,
                 routingKey: GetRoutingKeyForMessageType(message.GetType()),
                 mandatory: true,
                 basicProperties: props,
                 body: body,
                 cancellationToken: cancellationToken);
 
-            // TODO: Check if publish was successful
-
             return (true, null);
         }
         catch (Exception ex)
         {
+            // According to docs, BasicPublishAsync will throw if the message could not be routed
             return (false, ex.Message);
         }
     }
 
-    private static readonly Dictionary<Type, string> routingKeyMap = new()
+    private async Task EnsureChannelAsync(CancellationToken cancellationToken)
     {
-        [typeof(NotificationCreated)] = Constants.RoutingKeys.NotificationCreated,
-        [typeof(NotifyEmail)] = Constants.RoutingKeys.SendEmail,
-        [typeof(NotifySms)] = Constants.RoutingKeys.SendSms,
-        [typeof(NotifyPush)] = Constants.RoutingKeys.SendPush
-    };
+        if (channel == null || channel.IsClosed)
+        {
+            channel = await channelPool.RentChannelAsync(cancellationToken);
+        }
+    }
 
     private static string GetRoutingKeyForMessageType(Type messageType)
     {
@@ -64,5 +81,17 @@ public class RabbitMqPublisher(IChannel channel, string exchangeName)
         }
 
         throw new InvalidOperationException($"No routing key defined for message type {messageType.FullName}");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (channel != null)
+        {
+            await channelPool.ReturnChannelAsync(channel);
+        }
+
+        channel = null;
+
+        GC.SuppressFinalize(this);
     }
 }

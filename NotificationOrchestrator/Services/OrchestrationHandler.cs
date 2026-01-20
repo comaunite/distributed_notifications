@@ -2,27 +2,18 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Common;
 using Common.Enums;
-using Integrations.RabbitMQ.Interfaces;
+using Integrations.RabbitMQ;
 using Integrations.RabbitMQ.Models;
 using Integrations.RabbitMQ.Models.Base;
-using Integrations.RabbitMQ.Publishers;
 using Microsoft.Extensions.Logging;
 using NotificationOrchestrator.Models;
-using RabbitMQ.Client;
 using Constants = Integrations.RabbitMQ.Constants;
 
 namespace NotificationOrchestrator.Services;
 
-internal sealed class OrchestrationHandler(ILogger<OrchestrationHandler> logger) : IMessageHandler, IPublishingMessageHandler
+internal sealed class OrchestrationHandler(IRabbitMqPublisher publisher, ILogger<OrchestrationHandler> logger) : IMessageHandler
 {
-    private RabbitMqPublisher? publisher;
-
     public string QueueName => Constants.Queues.Orchestrator;
-
-    public void InitPublisher(IChannel channel)
-    {
-        publisher = new RabbitMqPublisher(channel, Constants.Exchange);
-    }
 
     // ValueTask is suboptimal in this case, since task is 99% will complete asynchronously.
     // Though for now keeping it for uniformity with other handlers,
@@ -142,7 +133,7 @@ internal sealed class OrchestrationHandler(ILogger<OrchestrationHandler> logger)
 
                 if (notification != null)
                 {
-                    var (success, error) = await publisher!.PublishAsync(notification, correlationId, cancellationToken);
+                    var (success, error) = await publisher.PublishAsync(notification, correlationId, cancellationToken);
 
                     if (!success)
                     {

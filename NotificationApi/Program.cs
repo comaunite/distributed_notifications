@@ -1,6 +1,6 @@
 using Hosting.Extensions;
 using Hosting.Middleware;
-using Integrations.RabbitMQ.Factories;
+using Integrations.RabbitMQ.HostingExtensions;
 using NotificationApi.Models;
 using NotificationApi.Services;
 using Persistence.Postgres.HostingExtensions;
@@ -15,9 +15,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddOpenApi();
 
-builder.Services.AddSingleton<RabbitMqConnectionFactory>();
-builder.Services.AddSingleton<IRabbitMqChannelPool, RabbitMqChannelPool>();
-builder.Services.AddHostedService<RabbitMQTopology.PublisherTopologyHostedService>();
+builder.AddRabbitMq<RabbitMQTopology.PublisherTopologyHostedService>();
 
 builder.Services.AddScoped<INotificationService, NotificationService>();
 

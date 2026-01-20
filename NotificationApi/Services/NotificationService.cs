@@ -1,7 +1,5 @@
 ﻿using Integrations.RabbitMQ;
-using Integrations.RabbitMQ.Factories;
 using Integrations.RabbitMQ.Models;
-using Integrations.RabbitMQ.Publishers;
 using NotificationApi.Models;
 using Persistence.Models.Entities;
 using Persistence.Postgres;
@@ -14,33 +12,15 @@ internal interface INotificationService
     Task<NotificationResponse> PostNotificationAsync(NotificationRequest request, CancellationToken cancellationToken);
 }
 
-internal sealed class NotificationService(IUnitOfWork uow, INotificationStore notificationStore, IRabbitMqChannelPool channelPool)
+internal sealed class NotificationService(IUnitOfWork uow, INotificationStore notificationStore, IRabbitMqPublisher publisher,
+    ILogger<NotificationService> logger)
     : INotificationService
 {
     public async Task<NotificationResponse> PostNotificationAsync(NotificationRequest request, CancellationToken cancellationToken)
     {
-        var notification = new Notification
-        {
-            Id = Guid.CreateVersion7(),
-            Type = request.Type,
-            Metadata = request.Content
-        };
+        var notification = await SaveNotificationAsync(request, cancellationToken);
 
-        await notificationStore.CreateAsync(notification, cancellationToken);
-        await uow.SaveChangesAsync(cancellationToken);
-
-        var channel = await channelPool.RentChannelAsync(cancellationToken);
-
-        var publisher = new RabbitMqPublisher(channel, Constants.Exchange);
-
-        var message = new NotificationCreated
-        {
-            NotificationId = notification.Id,
-            Type = request.Type,
-            CreatedAt = DateTimeOffset.UtcNow
-        };
-
-        var result = await publisher.PublishAsync(message, notification.Id.ToString(), cancellationToken);
+        var result = await PublishToRabbitMqAsync(notification, cancellationToken);
 
         return new NotificationResponse
         {
@@ -50,5 +30,38 @@ internal sealed class NotificationService(IUnitOfWork uow, INotificationStore no
                 : null,
             CorrelationId = notification.Id,
         };
+    }
+
+    private async Task<(bool success, string? errorMessage)> PublishToRabbitMqAsync(Notification notification, CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Publishing notification {NotificationId} to RabbitMQ", notification.Id);
+
+        var message = new NotificationCreated
+        {
+            NotificationId = notification.Id,
+            Type = notification.Type,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        var result = await publisher.PublishAsync(message, notification.Id.ToString(), cancellationToken);
+
+        return result;
+    }
+
+    private async Task<Notification> SaveNotificationAsync(NotificationRequest request, CancellationToken cancellationToken)
+    {
+        var notification = new Notification
+        {
+            Id = Guid.CreateVersion7(),
+            Type = request.Type,
+            Metadata = request.Content
+        };
+
+        logger.LogInformation("Saving notification {NotificationId} to database", notification.Id);
+
+        await notificationStore.CreateAsync(notification, cancellationToken);
+        await uow.SaveChangesAsync(cancellationToken);
+
+        return notification;
     }
 }

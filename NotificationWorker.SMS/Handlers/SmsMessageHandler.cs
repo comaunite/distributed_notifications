@@ -1,5 +1,5 @@
 ﻿using System.Text.Json;
-using Integrations.RabbitMQ.Interfaces;
+using Integrations.RabbitMQ;
 using Microsoft.Extensions.Logging;
 using Constants = Integrations.RabbitMQ.Constants;
 

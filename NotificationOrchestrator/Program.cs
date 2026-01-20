@@ -1,7 +1,5 @@
 ﻿using Hosting.Runtime.Extensions;
-using Integrations.RabbitMQ;
-using Integrations.RabbitMQ.Factories;
-using Microsoft.Extensions.DependencyInjection;
+using Integrations.RabbitMQ.HostingExtensions;
 using Microsoft.Extensions.Hosting;
 using NotificationOrchestrator.Services;
 using Persistence.Postgres.HostingExtensions;
@@ -11,12 +9,7 @@ var builder = Host.CreateApplicationBuilder();
 
 builder.AddConsoleLogging();
 
-builder.Services.AddSingleton<RabbitMqConnectionFactory>();
-builder.Services.AddSingleton<IRabbitMqChannelPool, RabbitMqChannelPool>();
-builder.Services.AddHostedService<RabbitMQTopology.OrchestratorTopologyHostedService>();
-
-builder.Services.AddSingleton<OrchestrationHandler>();
-builder.Services.AddHostedService<QueueConsumerService<OrchestrationHandler>>();
+builder.AddRabbitMq<RabbitMQTopology.OrchestratorTopologyHostedService, OrchestrationHandler>();
 
 builder.AddPostgresDatabase(withReadonlyReplica: false);
 

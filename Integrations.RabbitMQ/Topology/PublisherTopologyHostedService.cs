@@ -1,10 +1,9 @@
-﻿using Integrations.RabbitMQ.Factories;
-using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.Hosting;
 using RabbitMQ.Client;
 
 namespace Integrations.RabbitMQ.Topology;
 
-public sealed class PublisherTopologyHostedService(IRabbitMqChannelPool channelPool) : IHostedService
+public sealed class PublisherTopologyHostedService(RabbitMqChannelPool channelPool) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -16,7 +15,7 @@ public sealed class PublisherTopologyHostedService(IRabbitMqChannelPool channelP
             durable: true,
             cancellationToken: cancellationToken);
 
-        channelPool.ReturnChannel(channel);
+        await channelPool.ReturnChannelAsync(channel);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

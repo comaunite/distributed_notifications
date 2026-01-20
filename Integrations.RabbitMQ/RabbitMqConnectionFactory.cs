@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
 
-namespace Integrations.RabbitMQ.Factories;
+namespace Integrations.RabbitMQ;
 
 public sealed class RabbitMqConnectionFactory(IConfiguration configuration, ILogger<RabbitMqConnectionFactory> logger)
 {

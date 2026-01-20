@@ -1,6 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using Integrations.RabbitMQ.Factories;
-using Integrations.RabbitMQ.Interfaces;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
@@ -8,8 +6,14 @@ using RabbitMQ.Client.Events;
 
 namespace Integrations.RabbitMQ;
 
-public sealed class QueueConsumerService<T>(IRabbitMqChannelPool channelPool, T handler,
-    ILogger<QueueConsumerService<T>> logger)
+public interface IMessageHandler
+{
+    string QueueName { get; }
+
+    ValueTask<(bool success, string? error)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken);
+}
+
+public sealed class QueueConsumerService<T>(RabbitMqChannelPool channelPool, T handler, ILogger<QueueConsumerService<T>> logger)
     : BackgroundService
     where T : class, IMessageHandler
 {
@@ -51,12 +55,6 @@ public sealed class QueueConsumerService<T>(IRabbitMqChannelPool channelPool, T 
         logger.LogInformation("Initializing connection with RabbitMQ...");
 
         channel = await channelPool.RentChannelAsync(cancellationToken);
-
-        if (handler is IPublishingMessageHandler publishingHandler)
-        {
-            logger.LogInformation("Initializing publisher for handler {HandlerType}", typeof(T).Name);
-            publishingHandler.InitPublisher(channel);
-        }
 
         await channel.BasicQosAsync(
             prefetchSize: 0, // Size is not limited
@@ -118,8 +116,10 @@ public sealed class QueueConsumerService<T>(IRabbitMqChannelPool channelPool, T 
     {
         if (channel != null)
         {
+            // Channel is likely defective in some way, no point in returning it to the pool
             await channel.CloseAsync(CancellationToken.None);
             await channel.DisposeAsync();
+            channel = null;
         }
     }
 

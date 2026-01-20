@@ -3,16 +3,10 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 
-namespace Integrations.RabbitMQ.Factories;
-
-public interface IRabbitMqChannelPool
-{
-    Task<IChannel> RentChannelAsync(CancellationToken cancellationToken);
-    void ReturnChannel(IChannel channel);
-}
+namespace Integrations.RabbitMQ;
 
 public sealed class RabbitMqChannelPool(RabbitMqConnectionFactory connectionFactory, ILogger<RabbitMqChannelPool> logger)
-    : IRabbitMqChannelPool, IAsyncDisposable
+    : IAsyncDisposable
 {
     private readonly ConcurrentStack<IChannel> channels = new();
     private IConnection? connection;
@@ -44,7 +38,12 @@ public sealed class RabbitMqChannelPool(RabbitMqConnectionFactory connectionFact
 
         try
         {
-            connection ??= await connectionFactory.CreateConnectionAsync(cancellationToken);
+            if (connection is { IsOpen: true })
+            {
+                return;
+            }
+
+            connection = await connectionFactory.CreateConnectionAsync(cancellationToken);
         }
         finally
         {
@@ -52,15 +51,19 @@ public sealed class RabbitMqChannelPool(RabbitMqConnectionFactory connectionFact
         }
     }
 
-    public void ReturnChannel(IChannel channel)
+    public async ValueTask ReturnChannelAsync(IChannel channel)
     {
         if (channel.IsOpen)
         {
+            logger.LogInformation("Returning RabbitMq Channel to pool...");
+
             channels.Push(channel);
         }
         else
         {
-            channel.Dispose();
+            logger.LogInformation("RabbitMq Channel is closed, disposing...");
+
+            await channel.DisposeAsync();
         }
     }
 

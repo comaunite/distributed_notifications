@@ -1,11 +1,10 @@
-﻿using Integrations.RabbitMQ.Factories;
-using Integrations.RabbitMQ.Topology.Helpers;
+﻿using Integrations.RabbitMQ.Topology.Helpers;
 using Microsoft.Extensions.Hosting;
 using RabbitMQ.Client;
 
 namespace Integrations.RabbitMQ.Topology;
 
-public sealed class OrchestratorTopologyHostedService(IRabbitMqChannelPool channelPool) : IHostedService
+public sealed class OrchestratorTopologyHostedService(RabbitMqChannelPool channelPool) : IHostedService
 {
     private static string Exchange => Constants.Exchange;
     private static string Queue => Constants.Queues.Orchestrator;
@@ -37,7 +36,7 @@ public sealed class OrchestratorTopologyHostedService(IRabbitMqChannelPool chann
             routingKey: RoutingKey,
             cancellationToken: cancellationToken);
 
-        channelPool.ReturnChannel(channel);
+        await channelPool.ReturnChannelAsync(channel);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
