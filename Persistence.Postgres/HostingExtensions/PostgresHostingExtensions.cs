@@ -11,7 +11,7 @@ namespace Persistence.Postgres.HostingExtensions;
 
 public static class PostgresHostingExtensions
 {
-    public static IHostApplicationBuilder AddPostgresDatabase(this IHostApplicationBuilder builder, bool withReadonlyReplica)
+    public static IHostApplicationBuilder AddPostgresDatabase(this IHostApplicationBuilder builder)
     {
         var connectionString = builder.Configuration.GetConnectionString("Database")
                                ?? Environment.GetEnvironmentVariable("ConnectionStrings__Database");
@@ -32,30 +32,24 @@ public static class PostgresHostingExtensions
                 .EnableSensitiveDataLogging();
         });
 
-        if (withReadonlyReplica)
+        var readOnlyConnectionString = builder.Configuration.GetConnectionString("ReadOnlyDatabase")
+                                       ?? Environment.GetEnvironmentVariable("ConnectionStrings__ReadOnlyDatabase");
+
+        builder.Services.AddDbContextPool<ReadOnlyNotificationDbContext>(options =>
         {
-            var readOnlyConnectionString = builder.Configuration.GetConnectionString("ReadOnlyDatabase")
-                                          ?? Environment.GetEnvironmentVariable("ConnectionStrings__ReadOnlyDatabase");
-
-            builder.Services.AddDbContextPool<ReadOnlyNotificationDbContext>(options =>
+            options.UseNpgsql(readOnlyConnectionString, opts =>
             {
-                options.UseNpgsql(readOnlyConnectionString, opts =>
-                {
-                    opts.UseAdminDatabase("postgres");
-                    opts.EnableRetryOnFailure();
-                    opts.MigrationsHistoryTable(HistoryRepository.DefaultTableName, "public");
-                });
-
-                // This is to be removed for the production environment
-                options.LogTo(s => Debug.WriteLine(s));
-                options
-                    .EnableDetailedErrors()
-                    .EnableSensitiveDataLogging();
+                opts.UseAdminDatabase("postgres");
+                opts.EnableRetryOnFailure();
+                opts.MigrationsHistoryTable(HistoryRepository.DefaultTableName, "public");
             });
-        }
 
-        // Allow transaction control across multiple stores
-        builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+            // This is to be removed for the production environment
+            options.LogTo(s => Debug.WriteLine(s));
+            options
+                .EnableDetailedErrors()
+                .EnableSensitiveDataLogging();
+        });
 
         // Stores
         builder.Services.AddScoped<INotificationStore, PostgresNotificationStore>();

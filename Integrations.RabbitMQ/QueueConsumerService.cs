@@ -13,7 +13,7 @@ public interface IMessageHandler
     ValueTask<(bool success, string? error)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken);
 }
 
-public sealed class QueueConsumerService<T>(RabbitMqChannelPool channelPool, T handler, IOptions<QueueConsumerOptions> options,
+public sealed class QueueConsumerService<T>(RabbitMqConnectionFactory connectionFactory, T handler, IOptions<QueueConsumerOptions> options,
     ILogger<QueueConsumerService<T>> logger)
     : BackgroundService
     where T : class, IMessageHandler
@@ -65,7 +65,8 @@ public sealed class QueueConsumerService<T>(RabbitMqChannelPool channelPool, T h
     {
         logger.LogInformation("Initializing connection with RabbitMQ...");
 
-        channel = await channelPool.RentChannelAsync(cancellationToken);
+        var connection = await connectionFactory.GetConnectionAsync(cancellationToken);
+        channel = await connection.CreateChannelAsync(null, cancellationToken);
 
         await channel.BasicQosAsync(
             prefetchSize: options.Value.PrefetchSize,
@@ -127,7 +128,7 @@ public sealed class QueueConsumerService<T>(RabbitMqChannelPool channelPool, T h
     {
         if (channel != null)
         {
-            // Channel is likely defective in some way, no point in returning it to the pool
+            // This channel is configured for listener, so it should not be returned to the pool
             await channel.CloseAsync(CancellationToken.None);
             await channel.DisposeAsync();
             channel = null;

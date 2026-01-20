@@ -4,7 +4,7 @@ using RabbitMQ.Client;
 
 namespace Integrations.RabbitMQ.Topology;
 
-public sealed class OrchestratorTopologyHostedService(RabbitMqChannelPool channelPool) : IHostedService
+public sealed class OrchestratorTopologyHostedService(RabbitMqPublisherChannelPool publisherChannelPool) : IHostedService
 {
     private static string Exchange => Constants.Exchange;
     private static string Queue => Constants.Queues.Orchestrator;
@@ -12,7 +12,7 @@ public sealed class OrchestratorTopologyHostedService(RabbitMqChannelPool channe
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var channel = await channelPool.RentChannelAsync(cancellationToken);
+        var channel = await publisherChannelPool.RentChannelAsync(cancellationToken);
 
         var dlqArgs = await DlqHelper.InitDeadLetterQueueAsync(channel, Exchange, Queue, cancellationToken);
 
@@ -36,7 +36,7 @@ public sealed class OrchestratorTopologyHostedService(RabbitMqChannelPool channe
             routingKey: RoutingKey,
             cancellationToken: cancellationToken);
 
-        await channelPool.ReturnChannelAsync(channel);
+        await publisherChannelPool.ReturnChannelAsync(channel);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

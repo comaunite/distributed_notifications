@@ -21,7 +21,7 @@ builder.AddRabbitMq<RabbitMQTopology.PublisherTopologyHostedService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
 builder.AddRateLimiter();
-builder.AddPostgresDatabase(withReadonlyReplica: false);
+builder.AddPostgresDatabase();
 builder.AddRedis();
 
 var app = builder.Build();

@@ -6,9 +6,22 @@ using RabbitMQ.Client.Exceptions;
 namespace Integrations.RabbitMQ;
 
 public sealed class RabbitMqConnectionFactory(IConfiguration configuration, ILogger<RabbitMqConnectionFactory> logger)
+    : IAsyncDisposable
 {
-    public async Task<IConnection> CreateConnectionAsync(CancellationToken cancellationToken)
+    private IConnection? connection;
+
+    public async Task<IConnection> GetConnectionAsync(CancellationToken cancellationToken)
     {
+        if (connection is not null)
+        {
+            if (connection.IsOpen)
+            {
+                return connection;
+            }
+
+            await DisposeAsync();
+        }
+
         logger.LogInformation("Creating RabbitMq connection...");
 
         var factory = new ConnectionFactory
@@ -29,7 +42,7 @@ public sealed class RabbitMqConnectionFactory(IConfiguration configuration, ILog
         {
             try
             {
-                var connection = await factory.CreateConnectionAsync(cancellationToken);
+                connection = await factory.CreateConnectionAsync(cancellationToken);
 
                 connection.ConnectionShutdownAsync += (_, args) =>
                 {
@@ -49,6 +62,15 @@ public sealed class RabbitMqConnectionFactory(IConfiguration configuration, ILog
 
                 await Task.Delay(delayMilliseconds, cancellationToken);
             }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (connection is not null)
+        {
+            await connection.CloseAsync();
+            await connection.DisposeAsync();
         }
     }
 }

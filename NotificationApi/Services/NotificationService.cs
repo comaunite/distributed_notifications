@@ -2,7 +2,6 @@
 using Integrations.RabbitMQ.Models;
 using NotificationApi.Models;
 using Persistence.Models.Entities;
-using Persistence.Postgres;
 using Persistence.Stores;
 
 namespace NotificationApi.Services;
@@ -12,7 +11,7 @@ internal interface INotificationService
     Task<NotificationResponse> PostNotificationAsync(NotificationRequest request, CancellationToken cancellationToken);
 }
 
-internal sealed class NotificationService(IUnitOfWork uow, INotificationStore notificationStore, IRabbitMqPublisher publisher,
+internal sealed class NotificationService(INotificationStore notificationStore, IRabbitMqPublisher publisher,
     ILogger<NotificationService> logger)
     : INotificationService
 {
@@ -60,7 +59,6 @@ internal sealed class NotificationService(IUnitOfWork uow, INotificationStore no
         logger.LogInformation("Saving notification {NotificationId} to database", notification.Id);
 
         await notificationStore.CreateAsync(notification, cancellationToken);
-        await uow.SaveChangesAsync(cancellationToken);
 
         return notification;
     }

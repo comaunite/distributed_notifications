@@ -19,7 +19,7 @@ builder.AddRabbitMq<RabbitMQTopology.OrchestratorTopologyHostedService, Orchestr
     options.PrefetchCount = 1;
 });
 
-builder.AddPostgresDatabase(withReadonlyReplica: false);
+builder.AddPostgresDatabase();
 
 using var app = builder.Build();
 

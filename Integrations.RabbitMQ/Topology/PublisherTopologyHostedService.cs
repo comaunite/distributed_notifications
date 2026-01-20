@@ -3,11 +3,11 @@ using RabbitMQ.Client;
 
 namespace Integrations.RabbitMQ.Topology;
 
-public sealed class PublisherTopologyHostedService(RabbitMqChannelPool channelPool) : IHostedService
+public sealed class PublisherTopologyHostedService(RabbitMqPublisherChannelPool publisherChannelPool) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var channel = await channelPool.RentChannelAsync(cancellationToken);
+        var channel = await publisherChannelPool.RentChannelAsync(cancellationToken);
 
         await channel.ExchangeDeclareAsync(
             exchange: Constants.Exchange,
@@ -15,7 +15,7 @@ public sealed class PublisherTopologyHostedService(RabbitMqChannelPool channelPo
             durable: true,
             cancellationToken: cancellationToken);
 
-        await channelPool.ReturnChannelAsync(channel);
+        await publisherChannelPool.ReturnChannelAsync(channel);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

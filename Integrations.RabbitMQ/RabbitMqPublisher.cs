@@ -12,7 +12,7 @@ public interface IRabbitMqPublisher
         where T : BaseNotification;
 }
 
-public class RabbitMqPublisher(RabbitMqChannelPool channelPool) : IRabbitMqPublisher, IAsyncDisposable
+public class RabbitMqPublisher(RabbitMqPublisherChannelPool publisherChannelPool) : IRabbitMqPublisher, IAsyncDisposable
 {
     private IChannel? channel;
 
@@ -69,7 +69,7 @@ public class RabbitMqPublisher(RabbitMqChannelPool channelPool) : IRabbitMqPubli
     {
         if (channel == null || channel.IsClosed)
         {
-            channel = await channelPool.RentChannelAsync(cancellationToken);
+            channel = await publisherChannelPool.RentChannelAsync(cancellationToken);
         }
     }
 
@@ -87,7 +87,7 @@ public class RabbitMqPublisher(RabbitMqChannelPool channelPool) : IRabbitMqPubli
     {
         if (channel != null)
         {
-            await channelPool.ReturnChannelAsync(channel);
+            await publisherChannelPool.ReturnChannelAsync(channel);
         }
 
         channel = null;

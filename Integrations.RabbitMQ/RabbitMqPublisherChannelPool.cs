@@ -5,7 +5,7 @@ using RabbitMQ.Client;
 
 namespace Integrations.RabbitMQ;
 
-public sealed class RabbitMqChannelPool(RabbitMqConnectionFactory connectionFactory, ILogger<RabbitMqChannelPool> logger)
+public sealed class RabbitMqPublisherChannelPool(RabbitMqConnectionFactory connectionFactory, ILogger<RabbitMqPublisherChannelPool> logger)
     : IAsyncDisposable
 {
     private readonly ConcurrentStack<IChannel> channels = new();
@@ -43,7 +43,7 @@ public sealed class RabbitMqChannelPool(RabbitMqConnectionFactory connectionFact
                 return;
             }
 
-            connection = await connectionFactory.CreateConnectionAsync(cancellationToken);
+            connection = await connectionFactory.GetConnectionAsync(cancellationToken);
         }
         finally
         {

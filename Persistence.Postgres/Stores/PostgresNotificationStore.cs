@@ -17,6 +17,8 @@ public class PostgresNotificationStore(NotificationDbContext context, ReadOnlyNo
     {
         await context.AddAsync(notification, cancellationToken);
 
+        await context.SaveChangesAsync(cancellationToken);
+
         return notification;
     }
 }

@@ -11,7 +11,7 @@ public static class RabbitMqHostingExtensions
         where TTopology : class, IHostedService
     {
         builder.Services.AddSingleton<RabbitMqConnectionFactory>();
-        builder.Services.AddSingleton<RabbitMqChannelPool>();
+        builder.Services.AddSingleton<RabbitMqPublisherChannelPool>();
         builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
 
         // Topology (Exchange/Queue declarations)
