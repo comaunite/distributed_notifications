@@ -10,14 +10,19 @@ var builder = Host.CreateApplicationBuilder();
 
 builder.AddConsoleLogging();
 
-builder.AddRabbitMq<RabbitMQTopology.OrchestratorTopologyHostedService, OrchestrationHandler>(options =>
-{
-    options.ListeningQueueName = Constants.Queues.Orchestrator;
+builder.AddRabbitMqListenerAndPublisher<RabbitMQTopology.OrchestratorTopologyHostedService, OrchestrationHandler>(
+    options =>
+    {
+        options.ListeningQueueName = Constants.Queues.Orchestrator;
 
-    // A lot of work with a lot of parallelization under the hood.
-    // So we should process one message at a time. Prefer horizontal scaling to process more instead.
-    options.PrefetchCount = 1;
-});
+        // A lot of work with a lot of parallelization under the hood.
+        // So we should process one message at a time. Prefer horizontal scaling to process more instead.
+        options.PrefetchCount = 1;
+    },
+    publisherOptions =>
+    {
+        publisherOptions.InitialChannelCount = 10;
+    });
 
 builder.AddPostgresDatabase();
 

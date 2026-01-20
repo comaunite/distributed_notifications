@@ -9,11 +9,16 @@ var builder = Host.CreateApplicationBuilder();
 
 builder.AddConsoleLogging();
 
-builder.AddRabbitMq<RabbitMQTopology.SmsWorkerTopologyHostedService, SmsMessageHandler>(options =>
-{
-    options.ListeningQueueName = Constants.Queues.SmsWorker;
-    options.PrefetchCount = 20;
-});
+builder.AddRabbitMqListenerAndPublisher<RabbitMQTopology.SmsWorkerTopologyHostedService, SmsMessageHandler>(
+    options =>
+    {
+        options.ListeningQueueName = Constants.Queues.SmsWorker;
+        options.PrefetchCount = 20;
+    },
+    publisherOptions =>
+    {
+        publisherOptions.InitialChannelCount = 10;
+    });
 
 using var app = builder.Build();
 

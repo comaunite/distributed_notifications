@@ -12,10 +12,8 @@ public interface IRabbitMqPublisher
         where T : BaseNotification;
 }
 
-public class RabbitMqPublisher(RabbitMqPublisherChannelPool publisherChannelPool) : IRabbitMqPublisher, IAsyncDisposable
+public class RabbitMqPublisher(RabbitMqPublisherChannelPool publisherChannelPool) : IRabbitMqPublisher
 {
-    private IChannel? channel;
-
     private static readonly Dictionary<Type, string> routingKeyMap = new()
     {
         [typeof(NotificationCreated)] = Constants.RoutingKeys.NotificationCreated,
@@ -32,7 +30,7 @@ public class RabbitMqPublisher(RabbitMqPublisherChannelPool publisherChannelPool
         {
             ArgumentNullException.ThrowIfNull(message);
 
-            await EnsureChannelAsync(cancellationToken);
+            await using var channel = await publisherChannelPool.RentChannelAsync(cancellationToken);
 
             var body = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(
                 message,
@@ -48,7 +46,7 @@ public class RabbitMqPublisher(RabbitMqPublisherChannelPool publisherChannelPool
                 Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds())
             };
 
-            await channel!.BasicPublishAsync(
+            await channel.Channel.BasicPublishAsync(
                 exchange: Constants.Exchange,
                 routingKey: GetRoutingKeyForMessageType(message.GetType()),
                 mandatory: true,
@@ -65,14 +63,6 @@ public class RabbitMqPublisher(RabbitMqPublisherChannelPool publisherChannelPool
         }
     }
 
-    private async Task EnsureChannelAsync(CancellationToken cancellationToken)
-    {
-        if (channel == null || channel.IsClosed)
-        {
-            channel = await publisherChannelPool.RentChannelAsync(cancellationToken);
-        }
-    }
-
     private static string GetRoutingKeyForMessageType(Type messageType)
     {
         if (routingKeyMap.TryGetValue(messageType, out var routingKey))
@@ -81,17 +71,5 @@ public class RabbitMqPublisher(RabbitMqPublisherChannelPool publisherChannelPool
         }
 
         throw new InvalidOperationException($"No routing key defined for message type {messageType.FullName}");
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (channel != null)
-        {
-            await publisherChannelPool.ReturnChannelAsync(channel);
-        }
-
-        channel = null;
-
-        GC.SuppressFinalize(this);
     }
 }

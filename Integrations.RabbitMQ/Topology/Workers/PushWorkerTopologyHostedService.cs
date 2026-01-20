@@ -1,10 +1,12 @@
-﻿using Integrations.RabbitMQ.Topology.Helpers;
+﻿using System.Diagnostics.CodeAnalysis;
+using Integrations.RabbitMQ.Topology.Helpers;
 using Microsoft.Extensions.Hosting;
 using RabbitMQ.Client;
 
 // ReSharper disable once CheckNamespace
 namespace Integrations.RabbitMQ.Topology;
 
+[SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 public sealed class PushWorkerTopologyHostedService(RabbitMqPublisherChannelPool publisherChannelPool) : IHostedService
 {
     private static string Exchange => Constants.Exchange;
@@ -13,17 +15,17 @@ public sealed class PushWorkerTopologyHostedService(RabbitMqPublisherChannelPool
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var channel = await publisherChannelPool.RentChannelAsync(cancellationToken);
+        await using var channel = await publisherChannelPool.RentChannelAsync(cancellationToken);
 
-        var dlqArgs = await DlqHelper.InitDeadLetterQueueAsync(channel, Exchange, Queue, cancellationToken);
+        var dlqArgs = await DlqHelper.InitDeadLetterQueueAsync(channel.Channel, Exchange, Queue, cancellationToken);
 
-        await channel.ExchangeDeclareAsync(
+        await channel.Channel.ExchangeDeclareAsync(
             exchange: Exchange,
             type: ExchangeType.Topic,
             durable: true,
             cancellationToken: cancellationToken);
 
-        await channel.QueueDeclareAsync(
+        await channel.Channel.QueueDeclareAsync(
             queue: Queue,
             durable: true,
             exclusive: false,
@@ -31,13 +33,11 @@ public sealed class PushWorkerTopologyHostedService(RabbitMqPublisherChannelPool
             arguments: dlqArgs,
             cancellationToken: cancellationToken);
 
-        await channel.QueueBindAsync(
+        await channel.Channel.QueueBindAsync(
             queue: Queue,
             exchange: Exchange,
             routingKey: RoutingKey,
             cancellationToken: cancellationToken);
-
-        await publisherChannelPool.ReturnChannelAsync(channel);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

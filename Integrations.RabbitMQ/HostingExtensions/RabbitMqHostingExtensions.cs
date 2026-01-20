@@ -7,9 +7,12 @@ namespace Integrations.RabbitMQ.HostingExtensions;
 [SuppressMessage("ReSharper", "ConvertToExtensionBlock")]
 public static class RabbitMqHostingExtensions
 {
-    public static IHostApplicationBuilder AddRabbitMq<TTopology>(this IHostApplicationBuilder builder)
+    public static IHostApplicationBuilder AddRabbitMqPublisher<TTopology>(this IHostApplicationBuilder builder,
+        Action<RabbitMqPublisherChannelPoolOptions> publisherChannelPoolOptionsBuilder)
         where TTopology : class, IHostedService
     {
+        builder.Services.Configure(publisherChannelPoolOptionsBuilder);
+
         builder.Services.AddSingleton<RabbitMqConnectionFactory>();
         builder.Services.AddSingleton<RabbitMqPublisherChannelPool>();
         builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
@@ -17,16 +20,19 @@ public static class RabbitMqHostingExtensions
         // Topology (Exchange/Queue declarations)
         builder.Services.AddHostedService<TTopology>();
 
+        builder.Services.AddHostedService<RabbitMqWarmupService>();
+
         return builder;
     }
 
-    public static IHostApplicationBuilder AddRabbitMq<TTopology, THandler>(this IHostApplicationBuilder builder, Action<QueueConsumerOptions> options)
+    public static IHostApplicationBuilder AddRabbitMqListenerAndPublisher<TTopology, THandler>(this IHostApplicationBuilder builder,
+        Action<QueueConsumerOptions> consumerOptionsBuilder, Action<RabbitMqPublisherChannelPoolOptions> publisherChannelPoolOptionsBuilder)
         where THandler : class, IMessageHandler
         where TTopology : class, IHostedService
     {
-        builder.AddRabbitMq<TTopology>();
+        builder.Services.Configure(consumerOptionsBuilder);
 
-        builder.Services.Configure(options);
+        builder.AddRabbitMqPublisher<TTopology>(publisherChannelPoolOptionsBuilder);
 
         // Consumer Service
         builder.Services.AddSingleton<THandler>();

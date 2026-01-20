@@ -1,11 +1,29 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 
 namespace Integrations.RabbitMQ;
 
-public sealed class RabbitMqPublisherChannelPool(RabbitMqConnectionFactory connectionFactory, ILogger<RabbitMqPublisherChannelPool> logger)
+[SuppressMessage("Performance", "CA1815:Override equals and operator equals on value types")]
+public readonly struct RentedChannel(IChannel channel, RabbitMqPublisherChannelPool pool) : IAsyncDisposable
+{
+    public IChannel Channel => channel;
+
+    public ValueTask DisposeAsync()
+    {
+        return pool.ReturnChannelAsync(channel);
+    }
+}
+
+public class RabbitMqPublisherChannelPoolOptions
+{
+    public int InitialChannelCount { get; set; } = 5;
+}
+
+public sealed class RabbitMqPublisherChannelPool(RabbitMqConnectionFactory connectionFactory, IOptions<RabbitMqPublisherChannelPoolOptions> options,
+    ILogger<RabbitMqPublisherChannelPool> logger)
     : IAsyncDisposable
 {
     private readonly ConcurrentStack<IChannel> channels = new();
@@ -13,23 +31,60 @@ public sealed class RabbitMqPublisherChannelPool(RabbitMqConnectionFactory conne
     private readonly SemaphoreSlim connectionLock = new(1, 1);
 
     [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Disposed in DisposeAsync")]
-    public async Task<IChannel> RentChannelAsync(CancellationToken cancellationToken)
+    public async ValueTask<RentedChannel> RentChannelAsync(CancellationToken cancellationToken)
     {
         logger.LogInformation("Renting RabbitMq Channel from pool...");
 
         if (channels.TryPop(out var channel) && channel.IsOpen)
         {
-            return channel;
+            return new RentedChannel(channel, this);
         }
 
         await EnsureConnectionAsync(cancellationToken);
 
         logger.LogInformation("RabbitMq Channel Pool is empty, creating new channel...");
 
-        return await connection!.CreateChannelAsync(new CreateChannelOptions(
-            publisherConfirmationsEnabled: true,
-            publisherConfirmationTrackingEnabled: true
-        ), cancellationToken);
+        channel = await SpawnChannelAsync(cancellationToken);
+
+        return new RentedChannel(channel, this);
+    }
+
+    public async Task WarmupAsync(CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Warming up RabbitMq Channel Pool with {InitialChannelCount} channels...", options.Value.InitialChannelCount);
+
+        await EnsureConnectionAsync(cancellationToken);
+
+        var parallelOptions = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = 50,
+            CancellationToken = cancellationToken
+        };
+
+        await Parallel.ForAsync(0, options.Value.InitialChannelCount, parallelOptions, async (_, ct) =>
+        {
+            var channel = await SpawnChannelAsync(ct);
+
+            channels.Push(channel);
+        });
+
+        logger.LogInformation("RabbitMq Channel Pool warmup complete.");
+    }
+
+    public async ValueTask ReturnChannelAsync(IChannel channel)
+    {
+        if (channel.IsOpen)
+        {
+            logger.LogInformation("Returning RabbitMq Channel to pool...");
+
+            channels.Push(channel);
+        }
+        else
+        {
+            logger.LogInformation("RabbitMq Channel is closed, disposing...");
+
+            await channel.DisposeAsync();
+        }
     }
 
     private async Task EnsureConnectionAsync(CancellationToken cancellationToken)
@@ -51,20 +106,12 @@ public sealed class RabbitMqPublisherChannelPool(RabbitMqConnectionFactory conne
         }
     }
 
-    public async ValueTask ReturnChannelAsync(IChannel channel)
+    private async Task<IChannel> SpawnChannelAsync(CancellationToken cancellationToken)
     {
-        if (channel.IsOpen)
-        {
-            logger.LogInformation("Returning RabbitMq Channel to pool...");
-
-            channels.Push(channel);
-        }
-        else
-        {
-            logger.LogInformation("RabbitMq Channel is closed, disposing...");
-
-            await channel.DisposeAsync();
-        }
+        return await connection!.CreateChannelAsync(new CreateChannelOptions(
+            publisherConfirmationsEnabled: true,
+            publisherConfirmationTrackingEnabled: true
+        ), cancellationToken);
     }
 
     public async ValueTask DisposeAsync()
