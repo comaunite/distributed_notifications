@@ -51,9 +51,9 @@ public sealed class RabbitMqPublisherChannelPool(RabbitMqConnectionFactory conne
 
     public async Task WarmupAsync(CancellationToken cancellationToken)
     {
-        logger.LogInformation("Warming up RabbitMq Channel Pool with {InitialChannelCount} channels...", options.Value.InitialChannelCount);
-
         await EnsureConnectionAsync(cancellationToken);
+
+        logger.LogInformation("Warming up RabbitMq Channel Pool with {InitialChannelCount} channels...", options.Value.InitialChannelCount);
 
         var parallelOptions = new ParallelOptions
         {

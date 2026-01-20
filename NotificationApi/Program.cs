@@ -16,10 +16,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddOpenApi();
 
-builder.AddRabbitMqPublisher<RabbitMQTopology.PublisherTopologyHostedService>(options =>
-{
-    options.InitialChannelCount = 10;
-});
+builder
+    .AddRabbitMq<RabbitMQTopology.PublisherTopologyHostedService>()
+    .AddRabbitMqPublisher(options => { options.InitialChannelCount = 10; });
 
 builder.Services.AddScoped<INotificationService, NotificationService>();
 

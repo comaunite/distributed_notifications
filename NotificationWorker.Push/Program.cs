@@ -9,16 +9,14 @@ var builder = Host.CreateApplicationBuilder();
 
 builder.AddConsoleLogging();
 
-builder.AddRabbitMqListenerAndPublisher<RabbitMQTopology.PushWorkerTopologyHostedService, PushMessageHandler>(
-    options =>
+builder
+    .AddRabbitMq<RabbitMQTopology.PushWorkerTopologyHostedService>()
+    .AddRabbitMqListener<PushMessageHandler>(options =>
     {
         options.ListeningQueueName = Constants.Queues.PushWorker;
         options.PrefetchCount = 20;
-    },
-    publisherOptions =>
-    {
-        publisherOptions.InitialChannelCount = 10;
-    });
+    })
+    .AddRabbitMqPublisher(publisherOptions => { publisherOptions.InitialChannelCount = 10; });
 
 using var app = builder.Build();
 

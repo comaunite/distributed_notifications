@@ -9,16 +9,14 @@ var builder = Host.CreateApplicationBuilder();
 
 builder.AddConsoleLogging();
 
-builder.AddRabbitMqListenerAndPublisher<RabbitMQTopology.EmailWorkerTopologyHostedService, EmailMessageHandler>(
-    options =>
+builder
+    .AddRabbitMq<RabbitMQTopology.EmailWorkerTopologyHostedService>()
+    .AddRabbitMqListener<EmailMessageHandler>(options =>
     {
         options.ListeningQueueName = Constants.Queues.EmailWorker;
         options.PrefetchCount = 20;
-    },
-    publisherOptions =>
-    {
-        publisherOptions.InitialChannelCount = 10;
-    });
+    })
+    .AddRabbitMqPublisher(publisherOptions => { publisherOptions.InitialChannelCount = 10; });
 
 using var app = builder.Build();
 

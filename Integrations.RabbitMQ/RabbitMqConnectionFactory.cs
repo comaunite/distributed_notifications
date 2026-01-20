@@ -1,67 +1,83 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using System.Net.Sockets;
+using Integrations.RabbitMQ.HostingExtensions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Polly;
+using Polly.Retry;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
 
 namespace Integrations.RabbitMQ;
 
-public sealed class RabbitMqConnectionFactory(IConfiguration configuration, ILogger<RabbitMqConnectionFactory> logger)
+public sealed class RabbitMqConnectionFactory(IOptions<RabbitMqConnectionOptions> options, ILogger<RabbitMqConnectionFactory> logger)
     : IAsyncDisposable
 {
     private IConnection? connection;
 
+    private readonly ResiliencePipeline<IConnection> connectionPipeline = new ResiliencePipelineBuilder<IConnection>()
+        .AddRetry(new RetryStrategyOptions<IConnection>
+        {
+            ShouldHandle = new PredicateBuilder<IConnection>()
+                .Handle<BrokerUnreachableException>()
+                .Handle<SocketException>(),
+            BackoffType = DelayBackoffType.Exponential,
+            UseJitter = true,
+            MaxRetryAttempts = options.Value.MaxRetryAttempts,
+            Delay = TimeSpan.FromSeconds(options.Value.RetryDelaySeconds),
+            OnRetry = args =>
+            {
+                logger.LogWarning("RabbitMQ connection attempt {Attempt} failed. Retrying...", args.AttemptNumber + 1);
+                return default;
+            }
+        })
+        .Build();
+
+    private ConnectionFactory? connectionFactory;
+
+    private readonly SemaphoreSlim semaphore = new(1, 1);
+
     public async Task<IConnection> GetConnectionAsync(CancellationToken cancellationToken)
     {
-        if (connection is not null)
+        await semaphore.WaitAsync(cancellationToken);
+
+        try
         {
-            if (connection.IsOpen)
+            if (connection is not null)
             {
-                return connection;
-            }
-
-            await DisposeAsync();
-        }
-
-        logger.LogInformation("Creating RabbitMq connection...");
-
-        var factory = new ConnectionFactory
-        {
-            HostName = configuration["RabbitMQ:Host"] ?? "localhost",
-            Port = int.Parse(configuration["RabbitMQ:Port"] ?? "5672"),
-            UserName = configuration["RabbitMQ:Username"] ?? "guest",
-            Password = configuration["RabbitMQ:Password"] ?? "guest",
-            AutomaticRecoveryEnabled = true,
-            NetworkRecoveryInterval = TimeSpan.FromSeconds(5)
-        };
-
-        // TODO: Rewrite in Polly
-        const int maxRetries = 5;
-        const int delayMilliseconds = 5000;
-        var retryCount = 0;
-        while (true)
-        {
-            try
-            {
-                connection = await factory.CreateConnectionAsync(cancellationToken);
-
-                connection.ConnectionShutdownAsync += (_, args) =>
+                if (connection.IsOpen)
                 {
-                    logger.LogWarning("RabbitMQ Connection lost: {Reason}", args.ReplyText);
-                    return Task.CompletedTask;
-                };
+                    return connection;
+                }
 
-                logger.LogInformation("RabbitMq connection created successfully.");
-
-                return connection;
+                await DisposeAsync();
             }
-            catch (BrokerUnreachableException) when (retryCount < maxRetries)
+
+            logger.LogInformation("Creating RabbitMq connection...");
+
+            connectionFactory ??= new ConnectionFactory
             {
-                retryCount++;
-                logger.LogWarning("RabbitMQ not ready. Retrying in {Delay}s... (Attempt {Count}/{MaxRetries})"
-                    , delayMilliseconds / 1000, retryCount, maxRetries);
+                HostName = options.Value.HostName,
+                Port = options.Value.Port,
+                UserName = options.Value.UserName,
+                Password = options.Value.Password,
+                AutomaticRecoveryEnabled = options.Value.AutomaticRecoveryEnabled,
+                NetworkRecoveryInterval = options.Value.NetworkRecoveryInterval
+            };
 
-                await Task.Delay(delayMilliseconds, cancellationToken);
-            }
+            connection = await connectionPipeline.ExecuteAsync(async ct =>
+                await connectionFactory.CreateConnectionAsync(ct), cancellationToken);
+
+            connection.ConnectionShutdownAsync += (_, args) =>
+            {
+                logger.LogWarning("RabbitMQ Connection lost: {Reason}", args.ReplyText);
+                return Task.CompletedTask;
+            };
+
+            return connection;
+        }
+        finally
+        {
+            semaphore.Release();
         }
     }
 
@@ -72,5 +88,7 @@ public sealed class RabbitMqConnectionFactory(IConfiguration configuration, ILog
             await connection.CloseAsync();
             await connection.DisposeAsync();
         }
+
+        semaphore.Dispose();
     }
 }

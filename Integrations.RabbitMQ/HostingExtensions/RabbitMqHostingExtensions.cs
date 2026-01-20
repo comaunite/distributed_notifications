@@ -7,34 +7,41 @@ namespace Integrations.RabbitMQ.HostingExtensions;
 [SuppressMessage("ReSharper", "ConvertToExtensionBlock")]
 public static class RabbitMqHostingExtensions
 {
-    public static IHostApplicationBuilder AddRabbitMqPublisher<TTopology>(this IHostApplicationBuilder builder,
-        Action<RabbitMqPublisherChannelPoolOptions> publisherChannelPoolOptionsBuilder)
+    public static IHostApplicationBuilder AddRabbitMq<TTopology>(this IHostApplicationBuilder builder)
         where TTopology : class, IHostedService
     {
-        builder.Services.Configure(publisherChannelPoolOptionsBuilder);
+        builder.Services.Configure<RabbitMqConnectionOptions>(options =>
+        {
+            var section = builder.Configuration.GetSection(RabbitMqConnectionOptions.SectionName);
+            options.HostName = section["HOST"] ?? "rabbitmq";
+            options.Port = int.TryParse(section["PORT"], out var port) ? port : 5672;
+            options.UserName = section["USERNAME"] ?? "guest";
+            options.Password = section["PASSWORD"] ?? "guest";
+        });
 
         builder.Services.AddSingleton<RabbitMqConnectionFactory>();
-        builder.Services.AddSingleton<RabbitMqPublisherChannelPool>();
-        builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
 
-        // Topology (Exchange/Queue declarations)
         builder.Services.AddHostedService<TTopology>();
-
         builder.Services.AddHostedService<RabbitMqWarmupService>();
 
         return builder;
     }
 
-    public static IHostApplicationBuilder AddRabbitMqListenerAndPublisher<TTopology, THandler>(this IHostApplicationBuilder builder,
-        Action<QueueConsumerOptions> consumerOptionsBuilder, Action<RabbitMqPublisherChannelPoolOptions> publisherChannelPoolOptionsBuilder)
+    public static IHostApplicationBuilder AddRabbitMqPublisher(this IHostApplicationBuilder builder,
+        Action<RabbitMqPublisherChannelPoolOptions> publisherChannelPoolOptionsBuilder)
+    {
+        builder.Services.Configure(publisherChannelPoolOptionsBuilder);
+        builder.Services.AddSingleton<RabbitMqPublisherChannelPool>();
+        builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
+
+        return builder;
+    }
+
+    public static IHostApplicationBuilder AddRabbitMqListener<THandler>(this IHostApplicationBuilder builder,
+        Action<QueueConsumerOptions> consumerOptionsBuilder)
         where THandler : class, IMessageHandler
-        where TTopology : class, IHostedService
     {
         builder.Services.Configure(consumerOptionsBuilder);
-
-        builder.AddRabbitMqPublisher<TTopology>(publisherChannelPoolOptionsBuilder);
-
-        // Consumer Service
         builder.Services.AddSingleton<THandler>();
         builder.Services.AddHostedService<QueueConsumerService<THandler>>();
 
@@ -50,4 +57,20 @@ public sealed class QueueConsumerOptions
     public bool GlobalQos { get; set; }
     public bool AutoAck { get; set; }
     public string? ListeningQueueName { get; set; }
+}
+
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
+public class RabbitMqConnectionOptions
+{
+    public string HostName { get; set; } = "localhost";
+    public int Port { get; set; } = 5672;
+    public string UserName { get; set; } = "guest";
+    public string Password { get; set; } = "guest";
+
+    public bool AutomaticRecoveryEnabled { get; set; } = true;
+    public TimeSpan NetworkRecoveryInterval { get; set; } = TimeSpan.FromSeconds(5);
+
+    public int MaxRetryAttempts { get; set; } = 5;
+    public int RetryDelaySeconds { get; set; } = 1;
+    public const string SectionName = "RabbitMq";
 }
