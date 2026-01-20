@@ -32,7 +32,7 @@ internal sealed class OrchestrationHandler(IRabbitMqPublisher publisher, ILogger
 
         try
         {
-            // TODO: Logging for debugging purposes only
+            // Logging for debugging purposes only, in production should probably avoid logging every message
             logger.LogInformation("Orchestrating notification with ID '{NotificationId}'", message.NotificationId);
 
             await ProcessAndFanOutAsync(message, correlationId);

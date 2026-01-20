@@ -12,6 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Integrations.Redis\Integrations.Redis.csproj" />
       <ProjectReference Include="..\Persistence.Postgres\Persistence.Postgres.csproj" />
       <ProjectReference Include="..\Hosting.AspNet\Hosting.AspNet.csproj" />
       <ProjectReference Include="..\Integrations.RabbitMQ\Integrations.RabbitMQ.csproj" />

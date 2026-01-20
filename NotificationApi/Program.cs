@@ -1,6 +1,7 @@
 using Hosting.Extensions;
 using Hosting.Middleware;
 using Integrations.RabbitMQ.HostingExtensions;
+using Integrations.Redis.HostingExtensions;
 using NotificationApi.Models;
 using NotificationApi.Services;
 using Persistence.Postgres.HostingExtensions;
@@ -21,6 +22,7 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 
 builder.AddRateLimiter();
 builder.AddPostgresDatabase(withReadonlyReplica: false);
+builder.AddRedis();
 
 var app = builder.Build();
 
