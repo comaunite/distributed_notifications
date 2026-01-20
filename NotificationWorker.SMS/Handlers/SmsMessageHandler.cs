@@ -9,8 +9,6 @@ namespace NotificationWorker.SMS.Handlers;
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 internal sealed class SmsMessageHandler(ILogger<SmsMessageHandler> logger) : IMessageHandler
 {
-    public string QueueName => Constants.Queues.SmsWorker;
-
     public ValueTask<(bool success, string? error)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken)
     {
         var message = JsonSerializer.Deserialize(body.Span,

@@ -1,6 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
+using Integrations.RabbitMQ.HostingExtensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
@@ -8,12 +10,11 @@ namespace Integrations.RabbitMQ;
 
 public interface IMessageHandler
 {
-    string QueueName { get; }
-
     ValueTask<(bool success, string? error)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken);
 }
 
-public sealed class QueueConsumerService<T>(RabbitMqChannelPool channelPool, T handler, ILogger<QueueConsumerService<T>> logger)
+public sealed class QueueConsumerService<T>(RabbitMqChannelPool channelPool, T handler, IOptions<QueueConsumerOptions> options,
+    ILogger<QueueConsumerService<T>> logger)
     : BackgroundService
     where T : class, IMessageHandler
 {
@@ -26,6 +27,8 @@ public sealed class QueueConsumerService<T>(RabbitMqChannelPool channelPool, T h
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            EnsureConfigurationValidity();
+
             try
             {
                 await InitializeRabbitMqAsync(stoppingToken);
@@ -50,6 +53,14 @@ public sealed class QueueConsumerService<T>(RabbitMqChannelPool channelPool, T h
         }
     }
 
+    private void EnsureConfigurationValidity()
+    {
+        if (string.IsNullOrEmpty(options.Value.ListeningQueueName))
+        {
+            throw new InvalidOperationException("Queue name is not configured. Please set the QueueName option.");
+        }
+    }
+
     private async Task InitializeRabbitMqAsync(CancellationToken cancellationToken)
     {
         logger.LogInformation("Initializing connection with RabbitMQ...");
@@ -57,21 +68,21 @@ public sealed class QueueConsumerService<T>(RabbitMqChannelPool channelPool, T h
         channel = await channelPool.RentChannelAsync(cancellationToken);
 
         await channel.BasicQosAsync(
-            prefetchSize: 0, // Size is not limited
-            prefetchCount: 10, // Process up to 10 messages concurrently
-            global: false,
+            prefetchSize: options.Value.PrefetchSize,
+            prefetchCount: options.Value.PrefetchCount,
+            global: options.Value.GlobalQos,
             cancellationToken: cancellationToken);
 
         var consumer = new AsyncEventingBasicConsumer(channel);
         consumer.ReceivedAsync += OnMessageReceivedAsync;
 
         await channel.BasicConsumeAsync(
-            queue: handler.QueueName,
-            autoAck: false,
+            queue: options.Value.ListeningQueueName!,
+            autoAck: options.Value.AutoAck,
             consumer: consumer,
             cancellationToken: cancellationToken);
 
-        logger.LogInformation("Queue Consumer is now listening on {Queue}", handler.QueueName);
+        logger.LogInformation("Queue Consumer is now listening on {Queue}", options.Value.ListeningQueueName);
     }
 
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
@@ -85,7 +96,7 @@ public sealed class QueueConsumerService<T>(RabbitMqChannelPool channelPool, T h
 
         try
         {
-            var result = await handler.ProcessAsync(args.Body, args.BasicProperties.CorrelationId, CancellationToken.None);
+            var result = await handler.ProcessAsync(args.Body, args.BasicProperties.CorrelationId, args.CancellationToken);
 
             if (!result.success)
             {
@@ -94,11 +105,11 @@ public sealed class QueueConsumerService<T>(RabbitMqChannelPool channelPool, T h
 
                 // TODO: Handle permanent errors with requeue = false and DLQ
 
-                await channel!.BasicNackAsync(args.DeliveryTag, multiple: false, requeue: true, cancellationToken: CancellationToken.None);
+                await channel!.BasicNackAsync(args.DeliveryTag, multiple: false, requeue: true, cancellationToken: args.CancellationToken);
                 return;
             }
 
-            await channel!.BasicAckAsync(args.DeliveryTag, multiple: false, cancellationToken: CancellationToken.None);
+            await channel!.BasicAckAsync(args.DeliveryTag, multiple: false, cancellationToken: args.CancellationToken);
         }
         catch (Exception ex)
         {
@@ -107,7 +118,7 @@ public sealed class QueueConsumerService<T>(RabbitMqChannelPool channelPool, T h
 
             if (channel is { IsOpen: true })
             {
-                await channel!.BasicNackAsync(args.DeliveryTag, multiple: false, requeue: true, cancellationToken: CancellationToken.None);
+                await channel!.BasicNackAsync(args.DeliveryTag, multiple: false, requeue: true, cancellationToken: args.CancellationToken);
             }
         }
     }

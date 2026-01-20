@@ -20,11 +20,13 @@ public static class RabbitMqHostingExtensions
         return builder;
     }
 
-    public static IHostApplicationBuilder AddRabbitMq<TTopology, THandler>(this IHostApplicationBuilder builder)
+    public static IHostApplicationBuilder AddRabbitMq<TTopology, THandler>(this IHostApplicationBuilder builder, Action<QueueConsumerOptions> options)
         where THandler : class, IMessageHandler
         where TTopology : class, IHostedService
     {
         builder.AddRabbitMq<TTopology>();
+
+        builder.Services.Configure(options);
 
         // Consumer Service
         builder.Services.AddSingleton<THandler>();
@@ -32,4 +34,14 @@ public static class RabbitMqHostingExtensions
 
         return builder;
     }
+}
+
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
+public sealed class QueueConsumerOptions
+{
+    public uint PrefetchSize { get; set; }
+    public ushort PrefetchCount { get; set; } = 10;
+    public bool GlobalQos { get; set; }
+    public bool AutoAck { get; set; }
+    public string? ListeningQueueName { get; set; }
 }

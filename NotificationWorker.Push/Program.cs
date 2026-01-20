@@ -1,4 +1,5 @@
 ﻿using Hosting.Runtime.Extensions;
+using Integrations.RabbitMQ;
 using Integrations.RabbitMQ.HostingExtensions;
 using Microsoft.Extensions.Hosting;
 using NotificationWorker.Push.Handlers;
@@ -8,7 +9,11 @@ var builder = Host.CreateApplicationBuilder();
 
 builder.AddConsoleLogging();
 
-builder.AddRabbitMq<RabbitMQTopology.PushWorkerTopologyHostedService, PushMessageHandler>();
+builder.AddRabbitMq<RabbitMQTopology.PushWorkerTopologyHostedService, PushMessageHandler>(options =>
+{
+    options.ListeningQueueName = Constants.Queues.PushWorker;
+    options.PrefetchCount = 20;
+});
 
 using var app = builder.Build();
 

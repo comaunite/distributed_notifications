@@ -9,8 +9,6 @@ namespace NotificationWorker.Push.Handlers;
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 internal sealed class PushMessageHandler(ILogger<PushMessageHandler> logger) : IMessageHandler
 {
-    public string QueueName => Constants.Queues.PushWorker;
-
     public ValueTask<(bool success, string? error)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken)
     {
         var message = JsonSerializer.Deserialize(body.Span,

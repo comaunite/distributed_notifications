@@ -7,15 +7,12 @@ using Integrations.RabbitMQ.Models;
 using Integrations.RabbitMQ.Models.Base;
 using Microsoft.Extensions.Logging;
 using NotificationOrchestrator.Models;
-using Constants = Integrations.RabbitMQ.Constants;
 
 namespace NotificationOrchestrator.Services;
 
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 internal sealed class OrchestrationHandler(IRabbitMqPublisher publisher, ILogger<OrchestrationHandler> logger) : IMessageHandler
 {
-    public string QueueName => Constants.Queues.Orchestrator;
-
     // ValueTask is suboptimal in this case, since task is 99% will complete asynchronously.
     // Though for now keeping it for uniformity with other handlers,
     // where hotpath synchronous completion is possible.
@@ -35,7 +32,7 @@ internal sealed class OrchestrationHandler(IRabbitMqPublisher publisher, ILogger
             // Logging for debugging purposes only, in production should probably avoid logging every message
             logger.LogInformation("Orchestrating notification with ID '{NotificationId}'", message.NotificationId);
 
-            await ProcessAndFanOutAsync(message, correlationId);
+            await ProcessAndFanOutAsync(message, correlationId, cancellationToken);
 
             return (true, null);
         }
@@ -47,7 +44,7 @@ internal sealed class OrchestrationHandler(IRabbitMqPublisher publisher, ILogger
         }
     }
 
-    private async Task ProcessAndFanOutAsync(BaseNotification message, string? correlationId)
+    private async Task ProcessAndFanOutAsync(BaseNotification message, string? correlationId, CancellationToken cancellationToken)
     {
         // Get the users subscribed to this notification type
 
@@ -90,10 +87,10 @@ internal sealed class OrchestrationHandler(IRabbitMqPublisher publisher, ILogger
         var options = new ParallelOptions
         {
             MaxDegreeOfParallelism = 50,
-            CancellationToken = CancellationToken.None
+            CancellationToken = cancellationToken
         };
 
-        await Parallel.ForEachAsync(users, options, async (user, cancellationToken) =>
+        await Parallel.ForEachAsync(users, options, async (user, ct) =>
         {
             // Process each channel for the user
             foreach (var channelType in user.PreferredChannels)
@@ -134,7 +131,7 @@ internal sealed class OrchestrationHandler(IRabbitMqPublisher publisher, ILogger
 
                 if (notification != null)
                 {
-                    var (success, error) = await publisher.PublishAsync(notification, correlationId, cancellationToken);
+                    var (success, error) = await publisher.PublishAsync(notification, correlationId, ct);
 
                     if (!success)
                     {

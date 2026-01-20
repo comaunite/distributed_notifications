@@ -1,4 +1,5 @@
 ﻿using Hosting.Runtime.Extensions;
+using Integrations.RabbitMQ;
 using Integrations.RabbitMQ.HostingExtensions;
 using Microsoft.Extensions.Hosting;
 using NotificationWorker.Email.Handlers;
@@ -8,7 +9,11 @@ var builder = Host.CreateApplicationBuilder();
 
 builder.AddConsoleLogging();
 
-builder.AddRabbitMq<RabbitMQTopology.EmailWorkerTopologyHostedService, EmailMessageHandler>();
+builder.AddRabbitMq<RabbitMQTopology.EmailWorkerTopologyHostedService, EmailMessageHandler>(options =>
+{
+    options.ListeningQueueName = Constants.Queues.EmailWorker;
+    options.PrefetchCount = 20;
+});
 
 using var app = builder.Build();
 

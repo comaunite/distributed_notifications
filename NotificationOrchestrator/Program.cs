@@ -1,4 +1,5 @@
 ﻿using Hosting.Runtime.Extensions;
+using Integrations.RabbitMQ;
 using Integrations.RabbitMQ.HostingExtensions;
 using Microsoft.Extensions.Hosting;
 using NotificationOrchestrator.Services;
@@ -9,7 +10,14 @@ var builder = Host.CreateApplicationBuilder();
 
 builder.AddConsoleLogging();
 
-builder.AddRabbitMq<RabbitMQTopology.OrchestratorTopologyHostedService, OrchestrationHandler>();
+builder.AddRabbitMq<RabbitMQTopology.OrchestratorTopologyHostedService, OrchestrationHandler>(options =>
+{
+    options.ListeningQueueName = Constants.Queues.Orchestrator;
+
+    // A lot of work with a lot of parallelization under the hood.
+    // So we should process one message at a time. Prefer horizontal scaling to process more instead.
+    options.PrefetchCount = 1;
+});
 
 builder.AddPostgresDatabase(withReadonlyReplica: false);
 
