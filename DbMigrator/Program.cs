@@ -19,8 +19,8 @@ var logger = loggerFactory.CreateLogger("DbMigrator");
 
 try
 {
-    var connectionString = Environment.GetEnvironmentVariable("connectionString")
-                           ?? configuration["connectionString"];
+    var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__Database")
+                           ?? configuration.GetConnectionString("Default");
     
     var optionsBuilder = new DbContextOptionsBuilder<NotificationDbContext>();
     optionsBuilder

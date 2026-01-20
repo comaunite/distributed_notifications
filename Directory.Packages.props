@@ -12,9 +12,12 @@
     <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.2" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.2" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.2" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.AspNet" Version="10.0.2" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.AspNet.Abstractions" Version="10.0.2" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.2" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.2" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.2" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Debug" Version="10.0.2" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
     <PackageVersion Include="RabbitMQ.Client" Version="7.2.0" />
     <PackageVersion Include="Swashbuckle.AspNetCore.Swagger" Version="10.1.0" />

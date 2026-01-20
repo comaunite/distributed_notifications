@@ -13,7 +13,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Persistence.Postgres\Persistence.Postgres.csproj" />
-      <ProjectReference Include="..\Hosting\Hosting.csproj" />
+      <ProjectReference Include="..\Hosting.AspNet\Hosting.AspNet.csproj" />
       <ProjectReference Include="..\Integrations.RabbitMQ\Integrations.RabbitMQ.csproj" />
     </ItemGroup>
 

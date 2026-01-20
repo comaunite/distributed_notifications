@@ -7,9 +7,6 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["NotificationApi/NotificationApi.csproj", "NotificationApi/"]
-COPY ["Common/Common.csproj", "Common/"]
-COPY ["Integrations.RabbitMQ/Integrations.RabbitMQ.csproj", "Integrations.RabbitMQ/"]
-COPY ["Hosting/Hosting.csproj", "Hosting/"]
 RUN dotnet restore "NotificationApi/NotificationApi.csproj"
 COPY . .
 WORKDIR "/src/NotificationApi"

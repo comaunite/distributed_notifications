@@ -15,7 +15,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddOpenApi();
 
-builder.Services.AddSingleton<IRabbitMqConnectionFactory, RabbitMqConnectionFactory>();
+builder.Services.AddSingleton<RabbitMqConnectionFactory>();
+builder.Services.AddSingleton<IRabbitMqChannelPool, RabbitMqChannelPool>();
 builder.Services.AddHostedService<RabbitMQTopology.PublisherTopologyHostedService>();
 
 builder.Services.AddScoped<INotificationService, NotificationService>();

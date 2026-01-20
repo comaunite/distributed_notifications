@@ -6,7 +6,7 @@ using RabbitMQ.Client;
 // ReSharper disable once CheckNamespace
 namespace Integrations.RabbitMQ.Topology;
 
-public sealed class SmsWorkerTopologyHostedService(IRabbitMqConnectionFactory connectionFactory) : IHostedService
+public sealed class SmsWorkerTopologyHostedService(IRabbitMqChannelPool channelPool) : IHostedService
 {
     private static string Exchange => Constants.Exchange;
     private static string Queue => Constants.Queues.SmsWorker;
@@ -14,8 +14,7 @@ public sealed class SmsWorkerTopologyHostedService(IRabbitMqConnectionFactory co
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        await using var connection = await connectionFactory.CreateConnectionAsync(cancellationToken);
-        await using var channel = await connection.CreateChannelAsync(null, cancellationToken);
+        var channel = await channelPool.RentChannelAsync(cancellationToken);
 
         var dlqArgs = await DlqHelper.InitDeadLetterQueueAsync(channel, Exchange, Queue, cancellationToken);
 
@@ -38,6 +37,8 @@ public sealed class SmsWorkerTopologyHostedService(IRabbitMqConnectionFactory co
             exchange: Exchange,
             routingKey: RoutingKey,
             cancellationToken: cancellationToken);
+
+        channelPool.ReturnChannel(channel);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

@@ -1,4 +1,4 @@
-﻿using Hosting.Extensions;
+﻿using Hosting.Runtime.Extensions;
 using Integrations.RabbitMQ;
 using Integrations.RabbitMQ.Factories;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,10 +10,11 @@ var builder = Host.CreateApplicationBuilder();
 
 builder.AddConsoleLogging();
 
-builder.Services.AddSingleton<IRabbitMqConnectionFactory, RabbitMqConnectionFactory>();
-builder.Services.AddSingleton<PushMessageHandler>();
-
+builder.Services.AddSingleton<RabbitMqConnectionFactory>();
+builder.Services.AddSingleton<IRabbitMqChannelPool, RabbitMqChannelPool>();
 builder.Services.AddHostedService<RabbitMQTopology.PushWorkerTopologyHostedService>();
+
+builder.Services.AddSingleton<PushMessageHandler>();
 builder.Services.AddHostedService<QueueConsumerService<PushMessageHandler>>();
 
 using var app = builder.Build();

@@ -8,12 +8,11 @@ using RabbitMQ.Client.Events;
 
 namespace Integrations.RabbitMQ;
 
-public sealed class QueueConsumerService<T>(IRabbitMqConnectionFactory connectionFactory, T handler,
+public sealed class QueueConsumerService<T>(IRabbitMqChannelPool channelPool, T handler,
     ILogger<QueueConsumerService<T>> logger)
     : BackgroundService
     where T : class, IMessageHandler
 {
-    private IConnection? connection;
     private IChannel? channel;
 
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
@@ -49,20 +48,9 @@ public sealed class QueueConsumerService<T>(IRabbitMqConnectionFactory connectio
 
     private async Task InitializeRabbitMqAsync(CancellationToken cancellationToken)
     {
-        logger.LogInformation("Connecting to RabbitMQ...");
+        logger.LogInformation("Initializing connection with RabbitMQ...");
 
-        connection = await connectionFactory.CreateConnectionAsync(cancellationToken);
-        channel = await connection.CreateChannelAsync(new CreateChannelOptions(
-                publisherConfirmationsEnabled: true,
-                publisherConfirmationTrackingEnabled: true
-            ),
-            cancellationToken);
-
-        connection.ConnectionShutdownAsync += (_, args) =>
-        {
-            logger.LogWarning("RabbitMQ Connection lost: {Reason}", args.ReplyText);
-            return Task.CompletedTask;
-        };
+        channel = await channelPool.RentChannelAsync(cancellationToken);
 
         if (handler is IPublishingMessageHandler publishingHandler)
         {
@@ -128,19 +116,17 @@ public sealed class QueueConsumerService<T>(IRabbitMqConnectionFactory connectio
 
     private async Task CleanUpAsync()
     {
-        if (channel is { IsOpen: true })
+        if (channel != null)
+        {
             await channel.CloseAsync(CancellationToken.None);
-
-        if (connection is { IsOpen: true })
-            await connection.CloseAsync(CancellationToken.None);
-
-        channel?.Dispose();
-        connection?.Dispose();
+            await channel.DisposeAsync();
+        }
     }
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
         await CleanUpAsync();
+        await base.StopAsync(cancellationToken);
         Dispose();
     }
 }

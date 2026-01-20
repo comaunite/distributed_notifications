@@ -14,7 +14,8 @@ internal interface INotificationService
     Task<NotificationResponse> PostNotificationAsync(NotificationRequest request, CancellationToken cancellationToken);
 }
 
-internal sealed class NotificationService(IUnitOfWork uow, INotificationStore notificationStore, IRabbitMqConnectionFactory connectionFactory) : INotificationService
+internal sealed class NotificationService(IUnitOfWork uow, INotificationStore notificationStore, IRabbitMqChannelPool channelPool)
+    : INotificationService
 {
     public async Task<NotificationResponse> PostNotificationAsync(NotificationRequest request, CancellationToken cancellationToken)
     {
@@ -28,8 +29,7 @@ internal sealed class NotificationService(IUnitOfWork uow, INotificationStore no
         await notificationStore.CreateAsync(notification, cancellationToken);
         await uow.SaveChangesAsync(cancellationToken);
 
-        await using var connection = await connectionFactory.CreateConnectionAsync(cancellationToken);
-        await using var channel = await connection.CreateChannelAsync(null, cancellationToken);
+        var channel = await channelPool.RentChannelAsync(cancellationToken);
 
         var publisher = new RabbitMqPublisher(channel, Constants.Exchange);
 

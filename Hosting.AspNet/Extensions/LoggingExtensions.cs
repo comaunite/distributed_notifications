@@ -16,15 +16,4 @@ public static class LoggingExtensions
 
         return builder;
     }
-
-    public static IHostApplicationBuilder AddConsoleLogging(this IHostApplicationBuilder builder)
-    {
-        builder.Logging.AddConsole(options =>
-        {
-            options.FormatterName = "simple";
-        });
-        builder.Logging.AddDebug();
-
-        return builder;
-    }
 }
