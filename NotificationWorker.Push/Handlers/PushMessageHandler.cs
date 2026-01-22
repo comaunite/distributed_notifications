@@ -2,29 +2,37 @@
 using System.Text.Json;
 using Integrations.RabbitMQ;
 using Microsoft.Extensions.Logging;
-using Constants = Integrations.RabbitMQ.Constants;
+using Persistence.Stores;
 
 namespace NotificationWorker.Push.Handlers;
 
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
-internal sealed class PushMessageHandler(ILogger<PushMessageHandler> logger) : IMessageHandler
+internal sealed class PushMessageHandler(IDeduplicationStore deduplicationStore, ILogger<PushMessageHandler> logger) : IMessageHandler
 {
-    public ValueTask<(bool success, string? error)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken)
+    public async Task<(bool success, string? error, bool canRetry)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken)
     {
         var message = JsonSerializer.Deserialize(body.Span,
             Integrations.RabbitMQ.Serialization.NotificationSerializationContext.Default.NotifyPush);
 
         if (message == null)
         {
-            return new ValueTask<(bool success, string? error)>((false, "Failed to deserialize Push notification message"));
+            return (false, "Failed to deserialize Push notification message", false);
         }
 
-        // TODO: Handle deduplication
+        var deduplicationId = message.DeduplicationId.ToString();
 
-        // TODO: This is debug only, technically sending logic goes here
-        logger.LogInformation("Processing Push Notification: {NotificationId} to {DeviceToken}",
-            message.NotificationId, message.DeviceToken);
+        if (await deduplicationStore.IsDuplicateAsync(deduplicationId))
+        {
+            logger.LogInformation("Duplicate Push Notification detected: {NotificationId}, skipping processing.", message.NotificationId);
 
-        return new ValueTask<(bool success, string? error)>((true, null));
+            // Expecting to Ack the message
+            return (true, null, false);
+        }
+
+        logger.LogInformation("Processing Push Notification: {NotificationId} to {DeviceToken}", message.NotificationId, message.DeviceToken);
+
+        await deduplicationStore.MarkAsProcessedAsync(deduplicationId);
+
+        return (true, null, false);
     }
 }

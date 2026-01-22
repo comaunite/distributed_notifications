@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Persistence.Models.Entities;
+using Persistence.Entities;
 
 namespace Persistence.Postgres;
 
@@ -120,7 +120,7 @@ public partial class NotificationDbContext
                 .IsRequired();
 
             entity.Property(e => e.Metadata)
-                .HasMaxLength(4000);
+                .HasColumnType("jsonb");
 
             entity.Property(e => e.CreatedUtc)
                 .HasDefaultValueSql("now() at time zone 'utc'")

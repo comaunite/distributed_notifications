@@ -1,6 +1,6 @@
 using Common.Enums;
 
-namespace Persistence.Models.Entities;
+namespace Persistence.Entities;
 
 /// <summary>
 /// Only store the difference with default notification preferences
@@ -8,7 +8,7 @@ namespace Persistence.Models.Entities;
 public class UserNotificationPreference
 {
     public required Guid UserId { get; init; }
-    public required int NotificationType { get; init; }
+    public required NotificationType NotificationType { get; init; }
     public required DeliveryChannel DeliveryChannel { get; init; }
     public required bool IsEnabled { get; init; }
 

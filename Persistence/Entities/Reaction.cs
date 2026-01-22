@@ -1,4 +1,4 @@
-namespace Persistence.Models.Entities;
+namespace Persistence.Entities;
 
 public class Reaction
 {

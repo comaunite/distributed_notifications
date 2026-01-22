@@ -10,7 +10,7 @@ namespace Integrations.RabbitMQ;
 
 public interface IMessageHandler
 {
-    ValueTask<(bool success, string? error)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken);
+    Task<(bool success, string? error, bool canRetry)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken);
 }
 
 public sealed class QueueConsumerService<T>(RabbitMqConnectionFactory connectionFactory, T handler, IOptions<QueueConsumerOptions> options,
@@ -106,7 +106,7 @@ public sealed class QueueConsumerService<T>(RabbitMqConnectionFactory connection
 
                 // TODO: Handle permanent errors with requeue = false and DLQ
 
-                await channel!.BasicNackAsync(args.DeliveryTag, multiple: false, requeue: true, cancellationToken: args.CancellationToken);
+                await channel!.BasicNackAsync(args.DeliveryTag, multiple: false, requeue: result.canRetry, cancellationToken: args.CancellationToken);
                 return;
             }
 

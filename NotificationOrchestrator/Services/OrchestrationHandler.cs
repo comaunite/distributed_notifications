@@ -6,25 +6,23 @@ using Integrations.RabbitMQ;
 using Integrations.RabbitMQ.Models;
 using Integrations.RabbitMQ.Models.Base;
 using Microsoft.Extensions.Logging;
-using NotificationOrchestrator.Models;
+using Persistence.Models;
+using Persistence.Stores;
 
 namespace NotificationOrchestrator.Services;
 
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
-internal sealed class OrchestrationHandler(IRabbitMqPublisher publisher, ILogger<OrchestrationHandler> logger) : IMessageHandler
+internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPublisher publisher, ILogger<OrchestrationHandler> logger) : IMessageHandler
 {
-    // ValueTask is suboptimal in this case, since task is 99% will complete asynchronously.
-    // Though for now keeping it for uniformity with other handlers,
-    // where hotpath synchronous completion is possible.
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
-    public async ValueTask<(bool success, string? error)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken)
+    public async Task<(bool success, string? error, bool canRetry)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken)
     {
         var message = JsonSerializer.Deserialize(body.Span,
             Integrations.RabbitMQ.Serialization.NotificationSerializationContext.Default.BaseNotification);
 
         if (message == null)
         {
-            return (false, "Failed to deserialize notification message");
+            return (false, $"Failed to deserialize notification message. CorrelationId: {correlationId}", false);
         }
 
         try
@@ -32,120 +30,106 @@ internal sealed class OrchestrationHandler(IRabbitMqPublisher publisher, ILogger
             // Logging for debugging purposes only, in production should probably avoid logging every message
             logger.LogInformation("Orchestrating notification with ID '{NotificationId}'", message.NotificationId);
 
-            await ProcessAndFanOutAsync(message, correlationId, cancellationToken);
-
-            return (true, null);
+            return await ProcessAndFanOutAsync(message, cancellationToken);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error processing notification with ID '{NotificationId}'", message.NotificationId);
 
-            return (false, ex.Message);
+            return (false, ex.Message, true);
         }
     }
 
-    private async Task ProcessAndFanOutAsync(BaseNotification message, string? correlationId, CancellationToken cancellationToken)
+    private async Task<(bool success, string? error, bool canRetry)> ProcessAndFanOutAsync(BaseNotification message, CancellationToken cancellationToken)
     {
-        // Get the users subscribed to this notification type
-
-        // TODO: 1) Move to DB
-        // TODO: 2) Implement Redis cache
-        var users = new[]
-        {
-            new UserNotificationPreferences(
-                Guid.NewGuid(),
-                "bob.miller@example.com",
-                "+15551234567",
-                "device_token_123",
-                [ DeliveryChannel.Email, DeliveryChannel.Sms ]
-            ),
-            new UserNotificationPreferences(
-                Guid.NewGuid(),
-                "alice.smith@example.com",
-                "+15559876543",
-                "device_token_123",
-                [ DeliveryChannel.Email, DeliveryChannel.Push ]
-            ),
-            new UserNotificationPreferences(
-                Guid.NewGuid(),
-                "charlie.jones@example.com",
-                "+15551122334",
-                "device_token_123",
-                [ DeliveryChannel.Email, DeliveryChannel.Sms, DeliveryChannel.Push ]
-            ),
-            new UserNotificationPreferences(
-                Guid.NewGuid(),
-                "guy.simmons@example.com",
-                "+15555555555",
-                "device_token_123",
-                [ DeliveryChannel.Email ]
-            ),
-        };
-
-        // TODO: Needs validation that delivery destinations are specified for each channel preferred
-
         var options = new ParallelOptions
         {
-            MaxDegreeOfParallelism = 50,
+            MaxDegreeOfParallelism = Environment.ProcessorCount,
             CancellationToken = cancellationToken
         };
 
-        await Parallel.ForEachAsync(users, options, async (user, ct) =>
-        {
-            // Process each channel for the user
-            foreach (var channelType in user.PreferredChannels)
+        var defaults = await store.GetDefaultPreferencesAsync(message.Type, cancellationToken);
+
+        await Parallel.ForEachAsync(
+            store.GetNotificationRecipientsAsync(message.Type, defaults, cancellationToken),
+            options,
+            async (user, ct) =>
             {
-                var deduplicationId = GuidHelper.CreateDeterministic(
-                    message.NotificationId,
-                    user.UserId,
-                    (int)channelType);
+                var publishingTasks = new List<Task>();
 
-                BaseNotification? notification = channelType switch
+                foreach (var channelType in user.EnabledDeliveryChannels)
                 {
-                    DeliveryChannel.Email => new NotifyEmail
-                    {
-                        NotificationId = message.NotificationId,
-                        DeduplicationId = deduplicationId,
-                        EmailAddress = user.Email!,
-                        Type = NotificationType.NewPost,
-                        CreatedAt = DateTimeOffset.UtcNow
-                    },
-                    DeliveryChannel.Sms => new NotifySms
-                    {
-                        NotificationId = message.NotificationId,
-                        DeduplicationId = deduplicationId,
-                        PhoneNumber = user.PhoneNumber!,
-                        Type = NotificationType.NewPost,
-                        CreatedAt = DateTimeOffset.UtcNow
-                    },
-                    DeliveryChannel.Push => new NotifyPush
-                    {
-                        NotificationId = message.NotificationId,
-                        DeduplicationId = deduplicationId,
-                        DeviceToken = user.DeviceToken!,
-                        Type = NotificationType.NewPost,
-                        CreatedAt = DateTimeOffset.UtcNow
-                    },
-                    _ => null
-                };
+                    var deduplicationId = GuidHelper.CreateDeterministic(
+                        message.NotificationId,
+                        user.UserId,
+                        (int)channelType);
 
-                if (notification != null)
-                {
-                    var (success, error) = await publisher.PublishAsync(notification, correlationId, ct);
+                    var notification = MapNotification(user, channelType, message, deduplicationId);
 
-                    if (!success)
+                    if (notification == null)
                     {
-                        logger.LogError("Failed to publish to {Channel}: {Error}", channelType, error);
+                        logger.LogWarning("Failed to map notification {NotificationId} for user {UserId} and channel {Channel}",
+                            message.NotificationId, user.UserId, channelType);
+                        continue;
                     }
+
+                    publishingTasks.Add(HandlePublishAsync(user, notification, channelType, ct));
                 }
-                else
-                {
-                    logger.LogError("Encountered unsupported delivery channel: {Channel} for NotificationId '{NotificationId}' and UserId '{UserId}'",
-                        channelType, message.NotificationId, user.UserId);
-                }
-            }
-        });
+
+
+                await Task.WhenAll(publishingTasks);
+            });
 
         // TODO: Handle partial failures?
+
+        return (true, null, false);
+    }
+
+    private async Task HandlePublishAsync<T>(NotificationRecipient recipient, T notification, DeliveryChannel channelType, CancellationToken ct)
+        where T : BaseNotification
+    {
+        var (success, error) = await publisher.PublishAsync(notification, notification.NotificationId, ct);
+
+        if (!success)
+        {
+            logger.LogError("Failed to publish {NotificationId} to {Channel} for {UserId}: {Error}",
+                notification.NotificationId, channelType, recipient.UserId, error);
+        }
+    }
+
+    private static BaseNotification? MapNotification(NotificationRecipient recipient, DeliveryChannel channelType,
+        BaseNotification message, Guid deduplicationId)
+    {
+        return channelType switch
+        {
+            DeliveryChannel.Email => new NotifyEmail
+            {
+                NotificationId = message.NotificationId,
+                DeduplicationId = deduplicationId,
+                EmailAddress = recipient.Email!,
+                Type = NotificationType.NewPost,
+                Metadata = message.Metadata,
+                CreatedAt = DateTimeOffset.UtcNow
+            },
+            DeliveryChannel.Sms => new NotifySms
+            {
+                NotificationId = message.NotificationId,
+                DeduplicationId = deduplicationId,
+                PhoneNumber = recipient.PhoneNumber!,
+                Type = NotificationType.NewPost,
+                Metadata = message.Metadata,
+                CreatedAt = DateTimeOffset.UtcNow
+            },
+            DeliveryChannel.Push => new NotifyPush
+            {
+                NotificationId = message.NotificationId,
+                DeduplicationId = deduplicationId,
+                DeviceToken = recipient.DeviceToken!,
+                Type = NotificationType.NewPost,
+                Metadata = message.Metadata,
+                CreatedAt = DateTimeOffset.UtcNow
+            },
+            _ => null
+        };
     }
 }

@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
-using Persistence.Models.Entities.Interfaces;
+using Persistence.Entities.Interfaces;
 
-namespace Persistence.Models.Entities;
+namespace Persistence.Entities;
 
 [SuppressMessage("Usage", "CA2227:Collection properties should be read only")]
 [SuppressMessage("ReSharper", "EntityFramework.ModelValidation.CircularDependency")]
@@ -11,6 +11,11 @@ public class User : ITimeStamped
     public required string Username { get; init; }
     public required string Email { get; set; }
     public string? PhoneNumber { get; set; }
+
+    /// <summary>
+    /// In real life this would be a collection to support multiple devices per user
+    /// </summary>
+    public string? DeviceToken { get; set; }
 
     public DateTime CreatedUtc { get; set; }
     public DateTime? ModifiedUtc { get; set; }

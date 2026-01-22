@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
-using Persistence.Models.Entities.Interfaces;
+using Persistence.Entities.Interfaces;
 
-namespace Persistence.Models.Entities;
+namespace Persistence.Entities;
 
 [SuppressMessage("Usage", "CA2227:Collection properties should be read only")]
 [SuppressMessage("ReSharper", "EntityFramework.ModelValidation.CircularDependency")]

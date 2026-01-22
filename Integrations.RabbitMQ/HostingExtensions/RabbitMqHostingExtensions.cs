@@ -12,11 +12,13 @@ public static class RabbitMqHostingExtensions
     {
         builder.Services.Configure<RabbitMqConnectionOptions>(options =>
         {
-            var section = builder.Configuration.GetSection(RabbitMqConnectionOptions.SectionName);
-            options.HostName = section["HOST"] ?? "rabbitmq";
-            options.Port = int.TryParse(section["PORT"], out var port) ? port : 5672;
-            options.UserName = section["USERNAME"] ?? "guest";
-            options.Password = section["PASSWORD"] ?? "guest";
+            options.HostName =  builder.Configuration["RABBITMQ:HOST"] ?? options.HostName;
+
+            if (int.TryParse( builder.Configuration["RABBITMQ:PORT"], out var port))
+                options.Port = port;
+
+            options.UserName =  builder.Configuration["RABBITMQ:USERNAME"] ?? options.UserName;
+            options.Password =  builder.Configuration["RABBITMQ:PASSWORD"] ?? options.Password;
         });
 
         builder.Services.AddSingleton<RabbitMqConnectionFactory>();
@@ -72,5 +74,4 @@ public class RabbitMqConnectionOptions
 
     public int MaxRetryAttempts { get; set; } = 5;
     public int RetryDelaySeconds { get; set; } = 1;
-    public const string SectionName = "RabbitMq";
 }

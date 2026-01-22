@@ -1,7 +1,8 @@
+using System.Diagnostics.CodeAnalysis;
 using Common.Enums;
-using Persistence.Models.Entities.Interfaces;
+using Persistence.Entities.Interfaces;
 
-namespace Persistence.Models.Entities;
+namespace Persistence.Entities;
 
 public class Notification : ITimeStamped
 {
@@ -11,5 +12,6 @@ public class Notification : ITimeStamped
     public DateTime CreatedUtc { get; set; }
     public DateTime? ModifiedUtc { get; set; }
 
-    public string? Metadata { get; set; }
+    [SuppressMessage("Usage", "CA2227:Collection properties should be read only")]
+    public Dictionary<string, object>? Metadata { get; set; }
 }

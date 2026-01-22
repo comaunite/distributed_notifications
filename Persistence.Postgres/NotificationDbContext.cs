@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
-using Persistence.Models.Entities;
+using Persistence.Entities;
 
 namespace Persistence.Postgres;
 

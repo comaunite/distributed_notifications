@@ -1,6 +1,6 @@
-using Persistence.Models.Entities.Interfaces;
+using Persistence.Entities.Interfaces;
 
-namespace Persistence.Models.Entities;
+namespace Persistence.Entities;
 
 public class Comment : ITimeStamped
 {

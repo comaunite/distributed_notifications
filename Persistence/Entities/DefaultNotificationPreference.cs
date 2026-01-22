@@ -1,10 +1,10 @@
 using Common.Enums;
 
-namespace Persistence.Models.Entities;
+namespace Persistence.Entities;
 
 public class DefaultNotificationPreference
 {
-    public required int NotificationType { get; init; }
+    public required NotificationType NotificationType { get; init; }
     public required DeliveryChannel DeliveryChannel { get; init; }
     public required bool IsEnabled { get; init; }
 }

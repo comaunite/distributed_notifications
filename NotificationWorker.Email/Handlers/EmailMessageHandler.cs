@@ -2,28 +2,37 @@
 using System.Text.Json;
 using Integrations.RabbitMQ;
 using Microsoft.Extensions.Logging;
+using Persistence.Stores;
 
 namespace NotificationWorker.Email.Handlers;
 
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
-internal sealed class EmailMessageHandler(ILogger<EmailMessageHandler> logger) : IMessageHandler
+internal sealed class EmailMessageHandler(IDeduplicationStore deduplicationStore, ILogger<EmailMessageHandler> logger) : IMessageHandler
 {
-    public ValueTask<(bool success, string? error)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken)
+    public async Task<(bool success, string? error, bool canRetry)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken)
     {
         var message = JsonSerializer.Deserialize(body.Span,
             Integrations.RabbitMQ.Serialization.NotificationSerializationContext.Default.NotifyEmail);
 
         if (message == null)
         {
-            return new ValueTask<(bool success, string? error)>((false, "Failed to deserialize Push notification message"));
+            return (false, "Failed to deserialize Email notification message", false);
         }
 
-        // TODO: Handle deduplication
+        var deduplicationId = message.DeduplicationId.ToString();
 
-        // TODO: This is debug only, technically sending logic goes here
-        logger.LogInformation("Processing Push Notification: {NotificationId} to {EmailAddress}",
-            message.NotificationId, message.EmailAddress);
+        if (await deduplicationStore.IsDuplicateAsync(deduplicationId))
+        {
+            logger.LogInformation("Duplicate Email Notification detected: {NotificationId}, skipping processing.", message.NotificationId);
 
-        return new ValueTask<(bool success, string? error)>((true, null));
+            // Expecting to Ack the message
+            return (true, null, false);
+        }
+
+        logger.LogInformation("Processing Email Notification: {NotificationId} to {EmailAddress}", message.NotificationId, message.EmailAddress);
+
+        await deduplicationStore.MarkAsProcessedAsync(deduplicationId);
+
+        return (true, null, false);
     }
 }

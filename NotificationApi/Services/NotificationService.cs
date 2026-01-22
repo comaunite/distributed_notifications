@@ -1,7 +1,7 @@
 ﻿using Integrations.RabbitMQ;
 using Integrations.RabbitMQ.Models;
 using NotificationApi.Models;
-using Persistence.Models.Entities;
+using Persistence.Entities;
 using Persistence.Stores;
 
 namespace NotificationApi.Services;
@@ -39,10 +39,11 @@ internal sealed class NotificationService(INotificationStore notificationStore, 
         {
             NotificationId = notification.Id,
             Type = notification.Type,
-            CreatedAt = DateTimeOffset.UtcNow
+            Metadata = notification.Metadata,
+            CreatedAt = notification.CreatedUtc,
         };
 
-        var result = await publisher.PublishAsync(message, notification.Id.ToString(), cancellationToken);
+        var result = await publisher.PublishAsync(message, notification.Id, cancellationToken);
 
         return result;
     }
@@ -53,7 +54,7 @@ internal sealed class NotificationService(INotificationStore notificationStore, 
         {
             Id = Guid.CreateVersion7(),
             Type = request.Type,
-            Metadata = request.Content
+            Metadata = request.Metadata
         };
 
         logger.LogInformation("Saving notification {NotificationId} to database", notification.Id);
