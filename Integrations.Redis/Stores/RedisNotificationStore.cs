@@ -26,7 +26,7 @@ public class RedisNotificationStore(INotificationStore inner, IConnectionMultipl
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         // Cache to be invalidated when defaults change for a specific notification type (Very Rare)
-        // Individual entries within a set can be invalidated when a user updates their notification preferences or delivery address (Somewhat Common)
+        // Individual entries within a set can be updated when a user updates their notification preferences or delivery address (Somewhat Common)
 
         var setKey = $"recipients:{type}";
 
@@ -51,12 +51,25 @@ public class RedisNotificationStore(INotificationStore inner, IConnectionMultipl
 
         logger.LogInformation("Fetching notification recipients for notification type {NotificationType} from inner store", type);
 
+        var bulkCacheValues = new RedisValue[1000];
+        var currentIndex = 0;
+
         await foreach (var userRecipient in inner.GetNotificationRecipientsAsync(type, cancellationToken))
         {
-            var serialized = JsonSerializer.Serialize(userRecipient);
-            await db.SetAddAsync(setKey, serialized);
+            bulkCacheValues[currentIndex++] = JsonSerializer.Serialize(userRecipient);
+
+            if (currentIndex >= bulkCacheValues.Length)
+            {
+                await db.SetAddAsync(setKey, bulkCacheValues);
+                currentIndex = 0;
+            }
 
             yield return userRecipient;
+        }
+
+        if (currentIndex > 0)
+        {
+            await db.SetAddAsync(setKey, bulkCacheValues.Take(currentIndex).ToArray());
         }
     }
 }

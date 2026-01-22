@@ -16,8 +16,7 @@ builder
     {
         options.ListeningQueueName = Constants.Queues.PushWorker;
         options.PrefetchCount = 20;
-    })
-    .AddRabbitMqPublisher(publisherOptions => { publisherOptions.InitialChannelCount = 10; });
+    });
 
 builder.AddRedis();
 
