@@ -29,7 +29,7 @@ internal sealed class PushMessageHandler(IDeduplicationStore deduplicationStore,
             return (true, null, false);
         }
 
-        logger.LogInformation("Processing Push Notification: {NotificationId} to {DeviceToken}", message.NotificationId, message.DeviceToken);
+        logger.LogInformation("Processing Push Notification: {NotificationId} to {DeviceToken}", message.NotificationId, message.DeliveryAddress);
 
         await deduplicationStore.MarkAsProcessedAsync(deduplicationId);
 

@@ -29,7 +29,7 @@ internal sealed class SmsMessageHandler(IDeduplicationStore deduplicationStore, 
             return (true, null, false);
         }
 
-        logger.LogInformation("Processing SMS Notification: {NotificationId} to {PhoneNumber}", message.NotificationId, message.PhoneNumber);
+        logger.LogInformation("Processing SMS Notification: {NotificationId} to {PhoneNumber}", message.NotificationId, message.DeliveryAddress);
 
         await deduplicationStore.MarkAsProcessedAsync(deduplicationId);
 

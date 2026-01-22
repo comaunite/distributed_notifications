@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using Common.Enums;
 using Microsoft.Extensions.Logging;
 using Persistence.Entities;
@@ -24,10 +25,34 @@ public class RedisNotificationStore(INotificationStore inner, IConnectionMultipl
     public async IAsyncEnumerable<NotificationRecipient> GetNotificationRecipientsAsync(NotificationType type,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        var setKey = $"recipients:{type}";
+
+        if (await db.KeyExistsAsync(setKey))
+        {
+            logger.LogDebug("Streaming cached recipients for {Type}", type);
+
+            await foreach (var entry in db.SetScanAsync(setKey).WithCancellation(cancellationToken))
+            {
+                if (cancellationToken.IsCancellationRequested)
+                    yield break;
+
+                var recipient = JsonSerializer.Deserialize<NotificationRecipient>(entry.ToString());
+                if (recipient != null)
+                {
+                    yield return recipient;
+                }
+            }
+
+            yield break;
+        }
+
         logger.LogInformation("Fetching notification recipients for notification type {NotificationType} from inner store", type);
 
         await foreach (var userRecipient in inner.GetNotificationRecipientsAsync(type, cancellationToken))
         {
+            var serialized = JsonSerializer.Serialize(userRecipient);
+            await db.SetAddAsync(setKey, serialized);
+
             yield return userRecipient;
         }
     }

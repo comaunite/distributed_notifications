@@ -3,8 +3,8 @@ using Integrations.RabbitMQ.Models.Interfaces;
 
 namespace Integrations.RabbitMQ.Models;
 
-public record NotifyEmail : BaseNotification, IDeduplicatable
+public record NotifyEmail(string DeliveryAddress) : BaseNotification, IDeduplicatable, IDeliverableNotification
 {
-    public required Guid DeduplicationId { get; init; }
-    public required string EmailAddress { get; init; }
+    public Guid DeduplicationId { get; set; }
+    public string DeliveryAddress { get; set; } = DeliveryAddress;
 }

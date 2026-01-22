@@ -36,13 +36,21 @@ public class PostgresNotificationStore(NotificationDbContext context, ReadOnlyNo
                 defaultPref.DeliveryChannel
             }
             into result
+            // Exclude undeliverable channels
+            where
+                result.DeliveryChannel == DeliveryChannel.Email && !string.IsNullOrEmpty(result.User.Email)
+                || result.DeliveryChannel == DeliveryChannel.Sms && !string.IsNullOrEmpty(result.User.PhoneNumber)
+                || result.DeliveryChannel == DeliveryChannel.Push && !string.IsNullOrEmpty(result.User.DeviceToken)
+            orderby result.User.Id
             select new NotificationRecipient
             {
                 UserId = result.User.Id,
-                Email = result.User.Email,
-                PhoneNumber = result.User.PhoneNumber,
-                DeviceToken = result.User.DeviceToken,
-                DeliveryChannel = result.DeliveryChannel
+                DeliveryChannel = result.DeliveryChannel,
+                DeliveryAddress = result.DeliveryChannel == DeliveryChannel.Email
+                    ? result.User.Email
+                    : result.DeliveryChannel == DeliveryChannel.Sms
+                        ? result.User.PhoneNumber!
+                        : result.User.DeviceToken!
             };
 
         var offset = 0;

@@ -29,7 +29,7 @@ internal sealed class EmailMessageHandler(IDeduplicationStore deduplicationStore
             return (true, null, false);
         }
 
-        logger.LogInformation("Processing Email Notification: {NotificationId} to {EmailAddress}", message.NotificationId, message.EmailAddress);
+        logger.LogInformation("Processing Email Notification: {NotificationId} to {EmailAddress}", message.NotificationId, message.DeliveryAddress);
 
         await deduplicationStore.MarkAsProcessedAsync(deduplicationId);
 

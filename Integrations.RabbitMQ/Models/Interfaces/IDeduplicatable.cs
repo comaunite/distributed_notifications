@@ -2,5 +2,5 @@ namespace Integrations.RabbitMQ.Models.Interfaces;
 
 public interface IDeduplicatable
 {
-    Guid DeduplicationId { get; init; }
+    Guid DeduplicationId { get; set; }
 }

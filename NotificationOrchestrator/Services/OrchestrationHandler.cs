@@ -5,6 +5,7 @@ using Common.Enums;
 using Integrations.RabbitMQ;
 using Integrations.RabbitMQ.Models;
 using Integrations.RabbitMQ.Models.Base;
+using Integrations.RabbitMQ.Models.Interfaces;
 using Microsoft.Extensions.Logging;
 using Persistence.Models;
 using Persistence.Stores;
@@ -12,7 +13,8 @@ using Persistence.Stores;
 namespace NotificationOrchestrator.Services;
 
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
-internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPublisher publisher, ILogger<OrchestrationHandler> logger) : IMessageHandler
+internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPublisher publisher, ILogger<OrchestrationHandler> logger)
+    : IMessageHandler
 {
     [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
     public async Task<(bool success, string? error, bool canRetry)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken)
@@ -53,23 +55,24 @@ internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPu
         await Parallel.ForEachAsync(
             store.GetNotificationRecipientsAsync(message.Type, cancellationToken),
             options,
-            async (user, ct) =>
+            async (recipient, ct) =>
             {
-                var deduplicationId = GuidHelper.CreateDeterministic(
-                    message.NotificationId,
-                    user.UserId,
-                    (int)user.DeliveryChannel);
-
-                var notification = MapNotification(user, user.DeliveryChannel, message, deduplicationId);
+                var notification = MapNotification(recipient, message);
 
                 if (notification == null)
                 {
                     logger.LogWarning("Failed to map notification {NotificationId} for user {UserId} and channel {Channel}",
-                        message.NotificationId, user.UserId, user.DeliveryChannel);
+                        message.NotificationId, recipient.UserId, recipient.DeliveryChannel);
                 }
                 else
                 {
-                    await HandlePublishAsync(user, notification, user.DeliveryChannel, ct);
+                    var (success, error) = await publisher.PublishAsync(notification, notification.NotificationId, ct);
+
+                    if (!success)
+                    {
+                        logger.LogError("Failed to publish {NotificationId} to {Channel} for {UserId}: {Error}",
+                            notification.NotificationId, recipient.DeliveryChannel, recipient.UserId, error);
+                    }
                 }
 
                 Interlocked.Increment(ref count);
@@ -83,51 +86,30 @@ internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPu
         return (true, null, false);
     }
 
-    private async Task HandlePublishAsync<T>(NotificationRecipient recipient, T notification, DeliveryChannel channelType, CancellationToken ct)
-        where T : BaseNotification
+    private static BaseNotification? MapNotification(NotificationRecipient recipient, BaseNotification message)
     {
-        var (success, error) = await publisher.PublishAsync(notification, notification.NotificationId, ct);
+        var deduplicationId = GuidHelper.CreateDeterministic(
+            message.NotificationId,
+            recipient.UserId,
+            (int)recipient.DeliveryChannel);
 
-        if (!success)
+        return recipient.DeliveryChannel switch
         {
-            logger.LogError("Failed to publish {NotificationId} to {Channel} for {UserId}: {Error}",
-                notification.NotificationId, channelType, recipient.UserId, error);
-        }
-    }
-
-    private static BaseNotification? MapNotification(NotificationRecipient recipient, DeliveryChannel channelType,
-        BaseNotification message, Guid deduplicationId)
-    {
-        return channelType switch
-        {
-            DeliveryChannel.Email => new NotifyEmail
-            {
-                NotificationId = message.NotificationId,
-                DeduplicationId = deduplicationId,
-                EmailAddress = recipient.Email!,
-                Type = NotificationType.NewPost,
-                Metadata = message.Metadata,
-                CreatedAt = DateTimeOffset.UtcNow
-            },
-            DeliveryChannel.Sms => new NotifySms
-            {
-                NotificationId = message.NotificationId,
-                DeduplicationId = deduplicationId,
-                PhoneNumber = recipient.PhoneNumber!,
-                Type = NotificationType.NewPost,
-                Metadata = message.Metadata,
-                CreatedAt = DateTimeOffset.UtcNow
-            },
-            DeliveryChannel.Push => new NotifyPush
-            {
-                NotificationId = message.NotificationId,
-                DeduplicationId = deduplicationId,
-                DeviceToken = recipient.DeviceToken!,
-                Type = NotificationType.NewPost,
-                Metadata = message.Metadata,
-                CreatedAt = DateTimeOffset.UtcNow
-            },
+            DeliveryChannel.Email => CreateNotification(new NotifyEmail(recipient.DeliveryAddress)),
+            DeliveryChannel.Sms => CreateNotification(new NotifySms(recipient.DeliveryAddress)),
+            DeliveryChannel.Push => CreateNotification(new NotifyPush(recipient.DeliveryAddress)),
             _ => null
         };
+
+        T CreateNotification<T>(T notification)
+            where T : BaseNotification, IDeduplicatable, IDeliverableNotification
+        {
+            notification.NotificationId = message.NotificationId;
+            notification.DeduplicationId = deduplicationId;
+            notification.Type = message.Type;
+            notification.Metadata = message.Metadata;
+            notification.CreatedAt = DateTimeOffset.UtcNow;
+            return notification;
+        }
     }
 }
