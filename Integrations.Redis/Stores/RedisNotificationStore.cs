@@ -25,6 +25,9 @@ public class RedisNotificationStore(INotificationStore inner, IConnectionMultipl
     public async IAsyncEnumerable<NotificationRecipient> GetNotificationRecipientsAsync(NotificationType type,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        // Cache to be invalidated when defaults change for a specific notification type (Very Rare)
+        // Individual entries within a set can be invalidated when a user updates their notification preferences or delivery address (Somewhat Common)
+
         var setKey = $"recipients:{type}";
 
         if (await db.KeyExistsAsync(setKey))
