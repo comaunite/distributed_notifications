@@ -28,6 +28,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Hosting.Runtime\Hosting.Runtime.csproj"/>
+        <ProjectReference Include="..\Integrations.Redis\Integrations.Redis.csproj" />
         <ProjectReference Include="..\Persistence.Postgres\Persistence.Postgres.csproj"/>
         <ProjectReference Include="..\Integrations.RabbitMQ\Integrations.RabbitMQ.csproj"/>
     </ItemGroup>

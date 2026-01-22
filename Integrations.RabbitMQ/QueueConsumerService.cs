@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Integrations.RabbitMQ.HostingExtensions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -13,8 +14,8 @@ public interface IMessageHandler
     Task<(bool success, string? error, bool canRetry)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken);
 }
 
-public sealed class QueueConsumerService<T>(RabbitMqConnectionFactory connectionFactory, T handler, IOptions<QueueConsumerOptions> options,
-    ILogger<QueueConsumerService<T>> logger)
+public sealed class QueueConsumerService<T>(IServiceScopeFactory scopeFactory, RabbitMqConnectionFactory connectionFactory,
+    IOptions<QueueConsumerOptions> options, ILogger<QueueConsumerService<T>> logger)
     : BackgroundService
     where T : class, IMessageHandler
 {
@@ -95,6 +96,9 @@ public sealed class QueueConsumerService<T>(RabbitMqConnectionFactory connection
             return;
         }
 
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var handler = scope.ServiceProvider.GetRequiredService<T>();
+
         try
         {
             var result = await handler.ProcessAsync(args.Body, args.BasicProperties.CorrelationId, args.CancellationToken);
@@ -128,7 +132,6 @@ public sealed class QueueConsumerService<T>(RabbitMqConnectionFactory connection
     {
         if (channel != null)
         {
-            // This channel is configured for listener, so it should not be returned to the pool
             await channel.CloseAsync(CancellationToken.None);
             await channel.DisposeAsync();
             channel = null;

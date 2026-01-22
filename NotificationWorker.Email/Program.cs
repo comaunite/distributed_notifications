@@ -1,6 +1,7 @@
 ﻿using Hosting.Runtime.Extensions;
 using Integrations.RabbitMQ;
 using Integrations.RabbitMQ.HostingExtensions;
+using Integrations.Redis.HostingExtensions;
 using Microsoft.Extensions.Hosting;
 using NotificationWorker.Email.Handlers;
 using RabbitMQTopology = Integrations.RabbitMQ.Topology;
@@ -17,6 +18,8 @@ builder
         options.PrefetchCount = 20;
     })
     .AddRabbitMqPublisher(publisherOptions => { publisherOptions.InitialChannelCount = 10; });
+
+builder.AddRedis();
 
 using var app = builder.Build();
 

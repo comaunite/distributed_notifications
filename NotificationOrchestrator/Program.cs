@@ -1,6 +1,7 @@
 ﻿using Hosting.Runtime.Extensions;
 using Integrations.RabbitMQ;
 using Integrations.RabbitMQ.HostingExtensions;
+using Integrations.Redis.HostingExtensions;
 using Microsoft.Extensions.Hosting;
 using NotificationOrchestrator.Services;
 using Persistence.Postgres.HostingExtensions;
@@ -23,6 +24,8 @@ builder
     .AddRabbitMqPublisher(publisherOptions => { publisherOptions.InitialChannelCount = 10; });
 
 builder.AddPostgresDatabase();
+
+builder.AddRedis().WithPersistenceStoreDecorators();
 
 using var app = builder.Build();
 

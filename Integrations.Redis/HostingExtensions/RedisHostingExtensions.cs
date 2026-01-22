@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Integrations.Redis.Stores;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -6,6 +7,7 @@ using StackExchange.Redis;
 
 namespace Integrations.Redis.HostingExtensions;
 
+[SuppressMessage("ReSharper", "ConvertToExtensionBlock")]
 public static class RedisHostingExtensions
 {
     public static IHostApplicationBuilder AddRedis(this IHostApplicationBuilder builder)
@@ -16,6 +18,11 @@ public static class RedisHostingExtensions
 
         builder.Services.AddSingleton<IDeduplicationStore, RedisDeduplicationStore>();
 
+        return builder;
+    }
+
+    public static IHostApplicationBuilder WithPersistenceStoreDecorators(this IHostApplicationBuilder builder)
+    {
         builder.Services.Decorate<INotificationStore, RedisNotificationStore>();
 
         return builder;

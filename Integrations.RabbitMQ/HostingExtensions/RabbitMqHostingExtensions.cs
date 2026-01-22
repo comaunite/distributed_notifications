@@ -44,7 +44,7 @@ public static class RabbitMqHostingExtensions
         where THandler : class, IMessageHandler
     {
         builder.Services.Configure(consumerOptionsBuilder);
-        builder.Services.AddSingleton<THandler>();
+        builder.Services.AddScoped<THandler>();
         builder.Services.AddHostedService<QueueConsumerService<THandler>>();
 
         return builder;

@@ -24,7 +24,7 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 
 builder.AddRateLimiter();
 builder.AddPostgresDatabase();
-builder.AddRedis();
+builder.AddRedis().WithPersistenceStoreDecorators();
 
 var app = builder.Build();
 

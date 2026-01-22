@@ -127,7 +127,8 @@ services:
       dbmigrator:
         condition: service_completed_successfully
     environment:
-      <<: *rabbit-env
+      # noinspection ComposeUnknownValues
+      <<: [ *rabbit-env, *redis-env ]
 
   notificationworkersms:
     image: notificationworker
@@ -142,7 +143,8 @@ services:
       dbmigrator:
         condition: service_completed_successfully
     environment:
-      <<: *rabbit-env
+      # noinspection ComposeUnknownValues
+      <<: [ *rabbit-env, *redis-env ]
 
   notificationworkerpush:
     image: notificationworker
@@ -157,7 +159,8 @@ services:
       dbmigrator:
         condition: service_completed_successfully
     environment:
-      <<: *rabbit-env
+      # noinspection ComposeUnknownValues
+      <<: [ *rabbit-env, *redis-env ]
 
 volumes:
   postgres_data:
