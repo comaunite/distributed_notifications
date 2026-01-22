@@ -18,34 +18,32 @@ public class PostgresNotificationStore(NotificationDbContext context, ReadOnlyNo
         return notification;
     }
 
-    public async Task<IList<DefaultNotificationPreference>> GetDefaultPreferencesAsync(NotificationType type, CancellationToken cancellationToken)
-    {
-        return await readOnlyContext.DefaultNotificationPreferences
-            .Where(p => p.NotificationType == type)
-            .AsNoTracking()
-            .ToListAsync(cancellationToken);
-    }
-
-    public async IAsyncEnumerable<NotificationRecipient> GetNotificationRecipientsAsync(NotificationType type, IList<DefaultNotificationPreference> defaults,
+    public async IAsyncEnumerable<NotificationRecipient> GetNotificationRecipientsAsync(NotificationType type,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var query = readOnlyContext.Users
-            .Select(u => new NotificationRecipient
+        var query = from user in readOnlyContext.Users
+            from defaultPref in readOnlyContext.DefaultNotificationPreferences
+            where defaultPref.IsEnabled && defaultPref.NotificationType == type
+            let userPref = readOnlyContext.UserNotificationPreferences
+                .FirstOrDefault(p =>
+                    p.UserId == user.Id
+                    && p.NotificationType == type
+                    && p.DeliveryChannel == defaultPref.DeliveryChannel)
+            where (userPref == null && defaultPref.IsEnabled) || (userPref != null && userPref.IsEnabled)
+            select new
             {
-                UserId = u.Id,
-                Email = u.Email,
-                PhoneNumber = u.PhoneNumber,
-                DeviceToken = u.DeviceToken,
-                EnabledDeliveryChannels = defaults
-                    .AsEnumerable()
-                    .Where(d =>
-                        d.IsEnabled
-                        || u.NotificationPreferences
-                            .Any(np => np.NotificationType == d.NotificationType && np.IsEnabled))
-                    .Select(d => d.DeliveryChannel)
-            })
-            .Where(u => u.EnabledDeliveryChannels.Any())
-            .AsNoTracking();
+                User = user,
+                defaultPref.DeliveryChannel
+            }
+            into result
+            select new NotificationRecipient
+            {
+                UserId = result.User.Id,
+                Email = result.User.Email,
+                PhoneNumber = result.User.PhoneNumber,
+                DeviceToken = result.User.DeviceToken,
+                DeliveryChannel = result.DeliveryChannel
+            };
 
         var offset = 0;
         do
@@ -61,8 +59,8 @@ public class PostgresNotificationStore(NotificationDbContext context, ReadOnlyNo
 
             offset += page.Length;
 
-            foreach (var instruction in page)
-                yield return instruction;
+            foreach (var recipient in page)
+                yield return recipient;
         } while (true);
     }
 }

@@ -48,39 +48,37 @@ internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPu
             CancellationToken = cancellationToken
         };
 
-        var defaults = await store.GetDefaultPreferencesAsync(message.Type, cancellationToken);
+        var count = 0;
 
         await Parallel.ForEachAsync(
-            store.GetNotificationRecipientsAsync(message.Type, defaults, cancellationToken),
+            store.GetNotificationRecipientsAsync(message.Type, cancellationToken),
             options,
             async (user, ct) =>
             {
-                var publishingTasks = new List<Task>();
+                var deduplicationId = GuidHelper.CreateDeterministic(
+                    message.NotificationId,
+                    user.UserId,
+                    (int)user.DeliveryChannel);
 
-                foreach (var channelType in user.EnabledDeliveryChannels)
+                var notification = MapNotification(user, user.DeliveryChannel, message, deduplicationId);
+
+                if (notification == null)
                 {
-                    var deduplicationId = GuidHelper.CreateDeterministic(
-                        message.NotificationId,
-                        user.UserId,
-                        (int)channelType);
-
-                    var notification = MapNotification(user, channelType, message, deduplicationId);
-
-                    if (notification == null)
-                    {
-                        logger.LogWarning("Failed to map notification {NotificationId} for user {UserId} and channel {Channel}",
-                            message.NotificationId, user.UserId, channelType);
-                        continue;
-                    }
-
-                    publishingTasks.Add(HandlePublishAsync(user, notification, channelType, ct));
+                    logger.LogWarning("Failed to map notification {NotificationId} for user {UserId} and channel {Channel}",
+                        message.NotificationId, user.UserId, user.DeliveryChannel);
+                }
+                else
+                {
+                    await HandlePublishAsync(user, notification, user.DeliveryChannel, ct);
                 }
 
-
-                await Task.WhenAll(publishingTasks);
+                Interlocked.Increment(ref count);
             });
 
         // TODO: Handle partial failures?
+
+        logger.LogInformation("Successfully orchestrated notification {NotificationId} to {RecipientCount} recipients",
+            message.NotificationId, count);
 
         return (true, null, false);
     }

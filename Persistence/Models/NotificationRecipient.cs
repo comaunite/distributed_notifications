@@ -8,5 +8,5 @@ public sealed class NotificationRecipient
     public string? Email { get; init; }
     public string? PhoneNumber { get; init; }
     public string? DeviceToken { get; init; }
-    public IEnumerable<DeliveryChannel> EnabledDeliveryChannels { get; init; } = [];
+    public DeliveryChannel DeliveryChannel { get; init; }
 }

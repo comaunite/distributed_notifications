@@ -2,7 +2,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Common.Enums;
 using Microsoft.Extensions.Logging;
-using NRedisStack.RedisStackCommands;
 using Persistence.Entities;
 using Persistence.Models;
 using Persistence.Stores;
@@ -14,6 +13,7 @@ namespace Integrations.Redis.Stores;
 public class RedisNotificationStore(INotificationStore inner, IConnectionMultiplexer redis, ILogger<RedisNotificationStore> logger)
     : INotificationStore
 {
+    [SuppressMessage("Performance", "CA1823:Avoid unused private fields")]
     private readonly IDatabase db = redis.GetDatabase();
 
     public async Task<Notification?> CreateAsync(Notification notification, CancellationToken cancellationToken)
@@ -21,32 +21,12 @@ public class RedisNotificationStore(INotificationStore inner, IConnectionMultipl
         return await inner.CreateAsync(notification, cancellationToken);
     }
 
-    public async Task<IList<DefaultNotificationPreference>> GetDefaultPreferencesAsync(NotificationType type, CancellationToken cancellationToken)
-    {
-        var cacheKey = $"default_notification_preferences:{type}";
-
-        var cachedResult = await db.JSON().GetAsync<DefaultNotificationPreference[]>(cacheKey);
-
-        if (cachedResult is not null)
-        {
-            logger.LogInformation("Cache hit for default notification preferences");
-
-            return cachedResult;
-        }
-
-        logger.LogInformation("Cache miss for default notification preferences. Fetching from inner store.");
-
-        var result = await inner.GetDefaultPreferencesAsync(type, cancellationToken);
-
-        await db.JSON().SetAsync(cacheKey, "$", result.ToArray());
-
-        return result;
-    }
-
-    public async IAsyncEnumerable<NotificationRecipient> GetNotificationRecipientsAsync(NotificationType type, IList<DefaultNotificationPreference> defaults,
+    public async IAsyncEnumerable<NotificationRecipient> GetNotificationRecipientsAsync(NotificationType type,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        await foreach (var userRecipient in inner.GetNotificationRecipientsAsync(type, defaults, cancellationToken))
+        logger.LogInformation("Fetching notification recipients for notification type {NotificationType} from inner store", type);
+
+        await foreach (var userRecipient in inner.GetNotificationRecipientsAsync(type, cancellationToken))
         {
             yield return userRecipient;
         }

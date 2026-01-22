@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Npgsql;
 using Persistence.Postgres.Stores;
 using Persistence.Stores;
 
@@ -16,9 +17,13 @@ public static class PostgresHostingExtensions
         var connectionString = builder.Configuration.GetConnectionString("Database")
                                ?? Environment.GetEnvironmentVariable("ConnectionStrings__Database");
 
+        var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+        dataSourceBuilder.EnableDynamicJson();
+        var dataSource = dataSourceBuilder.Build();
+
         builder.Services.AddDbContextPool<NotificationDbContext>(options =>
         {
-            options.UseNpgsql(connectionString, opts =>
+            options.UseNpgsql(dataSource, opts =>
             {
                 opts.UseAdminDatabase("postgres");
                 opts.EnableRetryOnFailure();
@@ -35,9 +40,13 @@ public static class PostgresHostingExtensions
         var readOnlyConnectionString = builder.Configuration.GetConnectionString("ReadOnlyDatabase")
                                        ?? Environment.GetEnvironmentVariable("ConnectionStrings__ReadOnlyDatabase");
 
+        var readOnlyDataSourceBuilder = new NpgsqlDataSourceBuilder(readOnlyConnectionString);
+        readOnlyDataSourceBuilder.EnableDynamicJson();
+        var readOnlyDataSource = readOnlyDataSourceBuilder.Build();
+
         builder.Services.AddDbContextPool<ReadOnlyNotificationDbContext>(options =>
         {
-            options.UseNpgsql(readOnlyConnectionString, opts =>
+            options.UseNpgsql(readOnlyDataSource, opts =>
             {
                 opts.UseAdminDatabase("postgres");
                 opts.EnableRetryOnFailure();
