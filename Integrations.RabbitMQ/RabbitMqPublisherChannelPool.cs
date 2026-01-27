@@ -51,13 +51,26 @@ public sealed class RabbitMqPublisherChannelPool(RabbitMqConnectionFactory conne
 
     public async Task WarmupAsync(CancellationToken cancellationToken)
     {
+        if (options.Value.InitialChannelCount <= 0)
+        {
+            logger.LogInformation("RabbitMq Channel Pool warmup skipped, InitialChannelCount is set to {InitialChannelCount}.",
+                options.Value.InitialChannelCount);
+            return;
+        }
+
+        if (!channels.IsEmpty)
+        {
+            logger.LogInformation("RabbitMq Channel Pool warmup skipped, pool is not empty.");
+            return;
+        }
+
         await EnsureConnectionAsync(cancellationToken);
 
         logger.LogInformation("Warming up RabbitMq Channel Pool with {InitialChannelCount} channels...", options.Value.InitialChannelCount);
 
         var parallelOptions = new ParallelOptions
         {
-            MaxDegreeOfParallelism = 50,
+            MaxDegreeOfParallelism = Environment.ProcessorCount,
             CancellationToken = cancellationToken
         };
 
