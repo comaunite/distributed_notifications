@@ -22,7 +22,7 @@ internal sealed class EmailMessageHandler(IDeduplicationStore deduplicationStore
             return (false, "Failed to deserialize Email notification message", false);
         }
 
-        var deduplicationId = props.Headers!.GetGuid(Constants.HeaderKeys.DeduplicationId).ToString();
+        var deduplicationId = props.Headers!.GetString(Constants.HeaderKeys.DeduplicationId);
 
         if (await deduplicationStore.IsDuplicateAsync(deduplicationId))
         {

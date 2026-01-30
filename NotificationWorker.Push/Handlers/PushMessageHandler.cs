@@ -23,7 +23,7 @@ internal sealed class PushMessageHandler(IDeduplicationStore deduplicationStore,
             return (false, "Failed to deserialize Push notification message", false);
         }
 
-        var deduplicationId = props.Headers!.GetGuid(Constants.HeaderKeys.DeduplicationId).ToString();
+        var deduplicationId = props.Headers!.GetString(Constants.HeaderKeys.DeduplicationId);
 
         if (await deduplicationStore.IsDuplicateAsync(deduplicationId))
         {

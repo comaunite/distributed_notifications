@@ -117,8 +117,8 @@ public sealed class RabbitMqPublisherChannelPool(RabbitMqConnectionFactory conne
     private async Task<IChannel> SpawnChannelAsync(CancellationToken cancellationToken)
     {
         return await connection!.CreateChannelAsync(new CreateChannelOptions(
-            publisherConfirmationsEnabled: true,
-            publisherConfirmationTrackingEnabled: true
+            publisherConfirmationsEnabled: false, // Turned off for performance
+            publisherConfirmationTrackingEnabled: false
         ), cancellationToken);
     }
 

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
+using System.Threading.Channels;
 using Common;
 using Common.Enums;
 using Integrations.RabbitMQ;
@@ -8,6 +9,7 @@ using Integrations.RabbitMQ.Models;
 using Integrations.RabbitMQ.Models.Base;
 using Integrations.RabbitMQ.Serialization;
 using Microsoft.Extensions.Logging;
+using Persistence.Models;
 using Persistence.Stores;
 using RabbitMQ.Client;
 using Constants = Integrations.RabbitMQ.Constants;
@@ -15,7 +17,8 @@ using Constants = Integrations.RabbitMQ.Constants;
 namespace NotificationOrchestrator.Services;
 
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
-internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPublisher publisher, ILogger<OrchestrationHandler> logger)
+internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPublisher publisher, RabbitMqPublisherChannelPool publisherChannelPool,
+    ILogger<OrchestrationHandler> logger)
     : IMessageHandler
 {
     private static readonly Dictionary<DeliveryChannel, string> routingKeys = new()
@@ -54,38 +57,52 @@ internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPu
         }
     }
 
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types")]
     private async Task<(bool success, string? error, bool canRetry)> ProcessAndFanOutAsync(BaseNotification message, IReadOnlyBasicProperties props,
         CancellationToken cancellationToken)
     {
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
-        var options = new ParallelOptions
-        {
-            MaxDegreeOfParallelism = 16,
-            CancellationToken = cts.Token
-        };
-
         var count = 0;
         var failureCount = 0;
 
         var templateCache = InitializeTemplateCache(message);
 
-        // add timer for logging purpose
-        var timer = new Stopwatch();
-        timer.Start();
+        var channel = Channel.CreateBounded<NotificationRecipient>(new BoundedChannelOptions(1000)
+        {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleReader = false,
+            SingleWriter = true
+        });
 
-        await Parallel.ForEachAsync(
-            store.GetNotificationRecipientsAsync(message.Type, cts.Token),
-            options,
-            async (recipient, ct) =>
+        var timer = Stopwatch.StartNew();
+
+        var producer = Task.Run(async () =>
+        {
+            try
             {
-                if (failureCount >= 100)
+                await foreach (var recipient in store.GetNotificationRecipientsAsync(message.Type, cancellationToken))
                 {
-                    // Cancel further processing if too many failures (arbitrary atm)
-                    logger.LogWarning("Aborting notification {NotificationId} processing due to excessive failures", message.NotificationId);
-                    await cts.CancelAsync();
+                    await channel.Writer.WriteAsync(recipient, cancellationToken);
                 }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error producing recipients for notification {CorrelationId}", props.CorrelationId);
+            }
+            finally
+            {
+                logger.LogInformation("Completed producing recipients for notification {CorrelationId}", props.CorrelationId);
 
+                channel.Writer.Complete();
+            }
+        }, cancellationToken);
+
+        var consumers = Enumerable.Range(0, 16).Select(async _ =>
+        {
+            await using var rabbitMqChannel = await publisherChannelPool.RentChannelAsync(cancellationToken);
+            var headers = new Dictionary<string, object?>(2);
+
+            await foreach (var recipient in channel.Reader.ReadAllAsync(cancellationToken))
+            {
                 if (templateCache.TryGetValue(recipient.DeliveryChannel, out var template))
                 {
                     var deduplicationId = GuidHelper.CreateDeterministic(
@@ -93,26 +110,24 @@ internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPu
                         recipient.UserId,
                         (int)recipient.DeliveryChannel);
 
-                    var headers = new Dictionary<string, object?>(2)
-                    {
-                        [Constants.HeaderKeys.DeliveryAddress] = recipient.DeliveryAddress,
-                        [Constants.HeaderKeys.DeduplicationId] = deduplicationId.ToByteArray()
-                    };
+                    headers[Constants.HeaderKeys.DeliveryAddress] = recipient.DeliveryAddress;
+                    headers[Constants.HeaderKeys.DeduplicationId] = deduplicationId.ToString();
 
                     var (success, error) = await publisher.PublishAsync(
+                        rabbitMqChannel.Channel,
                         template,
                         headers,
                         props.CorrelationId,
                         routingKeys[recipient.DeliveryChannel],
                         false,
-                        ct);
+                        cancellationToken);
 
                     if (!success)
                     {
                         logger.LogError("Failed to publish {CorrelationId} to {Channel} for {UserId}: {Error}",
                             props.CorrelationId, recipient.DeliveryChannel, recipient.UserId, error);
 
-                        failureCount++;
+                        Interlocked.Increment(ref failureCount);
                     }
                 }
                 else
@@ -120,7 +135,7 @@ internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPu
                     logger.LogWarning("Failed to map notification {CorrelationId} for user {UserId} and channel {Channel}",
                         props.CorrelationId, recipient.UserId, recipient.DeliveryChannel);
 
-                    failureCount++;
+                    Interlocked.Increment(ref failureCount);
                 }
 
                 Interlocked.Increment(ref count);
@@ -130,7 +145,11 @@ internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPu
                     logger.LogInformation("Orchestrated notification {CorrelationId} to {Count} recipients over {ElapsedMilliseconds} ms",
                         props.CorrelationId, count, timer.ElapsedMilliseconds);
                 }
-            });
+            }
+        });
+
+        await Task.WhenAll(consumers);
+        await producer;
 
         timer.Stop();
 
