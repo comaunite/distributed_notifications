@@ -100,6 +100,12 @@ internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPu
         {
             await using var rabbitMqChannel = await publisherChannelPool.RentChannelAsync(cancellationToken);
             var headers = new Dictionary<string, object?>(2);
+            var basicProperties = new BasicProperties
+            {
+                Persistent = false,
+                ContentType = "application/json",
+                CorrelationId = props.CorrelationId,
+            };
 
             await foreach (var recipient in channel.Reader.ReadAllAsync(cancellationToken))
             {
@@ -113,11 +119,12 @@ internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPu
                     headers[Constants.HeaderKeys.DeliveryAddress] = recipient.DeliveryAddress;
                     headers[Constants.HeaderKeys.DeduplicationId] = deduplicationId.ToString();
 
+                    basicProperties.Headers = headers;
+
                     var (success, error) = await publisher.PublishAsync(
                         rabbitMqChannel.Channel,
                         template,
-                        headers,
-                        props.CorrelationId,
+                        basicProperties,
                         routingKeys[recipient.DeliveryChannel],
                         false,
                         cancellationToken);
