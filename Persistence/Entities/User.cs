@@ -19,9 +19,6 @@ public class User : ITimeStamped
 
     public DateTime CreatedUtc { get; set; }
     public DateTime? ModifiedUtc { get; set; }
-
-    public IList<Post> Posts { get; set; } = [];
-    public IList<Comment> Comments { get; set; } = [];
-    public IList<Reaction> Reactions { get; set; } = [];
+    
     public IList<UserNotificationPreference> NotificationPreferences { get; set; } = [];
 }

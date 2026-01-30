@@ -5,13 +5,16 @@ using RabbitMQ.Client;
 namespace Integrations.RabbitMQ.Topology;
 
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
-public sealed class PublisherTopologyHostedService(RabbitMqPublisherChannelPool publisherChannelPool) : IHostedService
+public sealed class PublisherTopologyHostedService(RabbitMqConnectionFactory connectionFactory) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        await using var channel = await publisherChannelPool.RentChannelAsync(cancellationToken);
+        // Don't need to dispose of the connection here, as it's managed by the connection factory
+        var connection = await connectionFactory.GetConnectionAsync(cancellationToken);
 
-        await channel.Channel.ExchangeDeclareAsync(
+        await using var channel = await connection.CreateChannelAsync(null, cancellationToken);
+
+        await channel.ExchangeDeclareAsync(
             exchange: Constants.Exchange,
             type: ExchangeType.Topic,
             durable: true,

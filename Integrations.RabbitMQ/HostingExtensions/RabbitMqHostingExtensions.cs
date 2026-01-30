@@ -24,7 +24,6 @@ public static class RabbitMqHostingExtensions
         builder.Services.AddSingleton<RabbitMqConnectionFactory>();
 
         builder.Services.AddHostedService<TTopology>();
-        builder.Services.AddHostedService<RabbitMqWarmupService>();
 
         return builder;
     }
@@ -35,6 +34,7 @@ public static class RabbitMqHostingExtensions
         builder.Services.Configure(publisherChannelPoolOptionsBuilder);
         builder.Services.AddSingleton<RabbitMqPublisherChannelPool>();
         builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
+        builder.Services.AddHostedService<RabbitMqChannelPoolWarmupService>();
 
         return builder;
     }

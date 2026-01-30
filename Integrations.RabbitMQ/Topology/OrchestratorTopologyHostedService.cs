@@ -6,7 +6,7 @@ using RabbitMQ.Client;
 namespace Integrations.RabbitMQ.Topology;
 
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
-public sealed class OrchestratorTopologyHostedService(RabbitMqPublisherChannelPool publisherChannelPool) : IHostedService
+public sealed class OrchestratorTopologyHostedService(RabbitMqConnectionFactory connectionFactory) : IHostedService
 {
     private static string Exchange => Constants.Exchange;
     private static string Queue => Constants.Queues.Orchestrator;
@@ -14,17 +14,20 @@ public sealed class OrchestratorTopologyHostedService(RabbitMqPublisherChannelPo
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        await using var channel = await publisherChannelPool.RentChannelAsync(cancellationToken);
+        // Don't need to dispose of the connection here, as it's managed by the connection factory
+        var connection = await connectionFactory.GetConnectionAsync(cancellationToken);
 
-        var dlqArgs = await DlqHelper.InitDeadLetterQueueAsync(channel.Channel, Exchange, Queue, cancellationToken);
+        await using var channel = await connection.CreateChannelAsync(null, cancellationToken);
 
-        await channel.Channel.ExchangeDeclareAsync(
+        var dlqArgs = await DlqHelper.InitDeadLetterQueueAsync(channel, Exchange, Queue, cancellationToken);
+
+        await channel.ExchangeDeclareAsync(
             exchange: Exchange,
             type: ExchangeType.Topic,
             durable: true,
             cancellationToken: cancellationToken);
 
-        await channel.Channel.QueueDeclareAsync(
+        await channel.QueueDeclareAsync(
             queue: Queue,
             durable: true,
             exclusive: false,
@@ -32,7 +35,7 @@ public sealed class OrchestratorTopologyHostedService(RabbitMqPublisherChannelPo
             arguments: dlqArgs,
             cancellationToken: cancellationToken);
 
-        await channel.Channel.QueueBindAsync(
+        await channel.QueueBindAsync(
             queue: Queue,
             exchange: Exchange,
             routingKey: RoutingKey,

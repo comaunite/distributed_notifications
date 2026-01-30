@@ -15,9 +15,6 @@
       <Compile Update="NotificationDbContext.ModelMapper.cs">
         <DependentUpon>NotificationDbContext.cs</DependentUpon>
       </Compile>
-      <Compile Update="NotificationDbContext.ReadOnly.cs">
-        <DependentUpon>NotificationDbContext.cs</DependentUpon>
-      </Compile>
     </ItemGroup>
 
 </Project>

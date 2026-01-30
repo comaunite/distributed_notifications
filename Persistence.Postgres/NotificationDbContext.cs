@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Persistence.Entities;
 
 namespace Persistence.Postgres;
@@ -16,12 +18,28 @@ namespace Persistence.Postgres;
 public partial class NotificationDbContext(DbContextOptions options) : DbContext(options)
 {
     public DbSet<User> Users { get; init; }
-    public DbSet<Post> Posts { get; init; }
-    public DbSet<Comment> Comments { get; init; }
-    public DbSet<Reaction> Reactions { get; init; }
     public DbSet<UserNotificationPreference> UserNotificationPreferences { get; init; }
     public DbSet<DefaultNotificationPreference> DefaultNotificationPreferences { get; init; }
     public DbSet<Notification> Notifications { get; init; }
+
+    public static NotificationDbContext Create(string connectionString)
+    {
+        var options = new DbContextOptionsBuilder<NotificationDbContext>()
+            .UseNpgsql(connectionString, opts =>
+            {
+                opts.UseAdminDatabase("postgres");
+                opts.EnableRetryOnFailure();
+                opts.MigrationsHistoryTable(HistoryRepository.DefaultTableName, "public");
+            });
+
+        // This is to be removed for the production environment
+        options.LogTo(s => Debug.WriteLine(s));
+        options
+            .EnableDetailedErrors()
+            .EnableSensitiveDataLogging();
+
+        return new NotificationDbContext(options.Options);
+    }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

@@ -9,6 +9,8 @@ public partial class NotificationDbContext
     {
         modelBuilder.Entity<User>(entity =>
         {
+            entity.ToTable("users", "ntf");
+
             entity.HasKey(e => e.Id);
 
             entity.Property(e => e.Id)
@@ -32,85 +34,12 @@ public partial class NotificationDbContext
             entity.HasMany(e => e.NotificationPreferences)
                   .WithOne(np => np.User)
                   .HasForeignKey(np => np.UserId);
-
-            entity.HasMany(e => e.Posts)
-                  .WithOne(p => p.User)
-                  .HasForeignKey(p => p.UserId);
-
-            entity.HasMany(e => e.Comments)
-                  .WithOne(c => c.User)
-                  .HasForeignKey(c => c.UserId);
-
-            entity.HasMany(e => e.Reactions)
-                  .WithOne(r => r.User)
-                  .HasForeignKey(r => r.UserId);
-        });
-
-        modelBuilder.Entity<Post>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-
-            entity.Property(e => e.Id)
-                .HasColumnType("uuid");
-
-            entity.Property(e => e.UserId)
-                .IsRequired();
-
-            entity.Property(e => e.Content)
-                .IsRequired()
-                .HasMaxLength(5000);
-
-            entity.Property(e => e.CreatedUtc)
-                .HasDefaultValueSql("now() at time zone 'utc'")
-                .IsRequired();
-
-            entity.HasMany(e => e.Comments)
-                  .WithOne(c => c.Post)
-                  .HasForeignKey(c => c.PostId);
-
-            entity.HasMany(e => e.Reactions)
-                  .WithOne(r => r.Post)
-                  .HasForeignKey(r => r.PostId);
-        });
-
-        modelBuilder.Entity<Comment>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-
-            entity.Property(e => e.Id)
-                .HasColumnType("uuid");
-
-            entity.Property(e => e.PostId)
-                .IsRequired();
-
-            entity.Property(e => e.UserId)
-                .IsRequired();
-
-            entity.Property(e => e.Content)
-                .IsRequired()
-                .HasMaxLength(2000);
-
-            entity.Property(e => e.CreatedUtc)
-                .HasDefaultValueSql("now() at time zone 'utc'")
-                .IsRequired();
-        });
-
-        modelBuilder.Entity<Reaction>(entity =>
-        {
-            entity.HasKey(e => new { e.PostId, e.UserId });
-
-            entity.Property(e => e.PostId)
-                .IsRequired();
-
-            entity.Property(e => e.UserId)
-                .IsRequired();
-
-            entity.Property(e => e.Type)
-                .IsRequired();
         });
 
         modelBuilder.Entity<Notification>(entity =>
         {
+            entity.ToTable("notifications", "ntf");
+
             entity.HasKey(e => e.Id);
 
             entity.Property(e => e.Id)
@@ -120,7 +49,10 @@ public partial class NotificationDbContext
                 .IsRequired();
 
             entity.Property(e => e.Metadata)
-                .HasColumnType("jsonb");
+                .HasColumnType("jsonb")
+                .HasConversion(
+                    v => System.Text.Json.JsonSerializer.Serialize(v),
+                    v => System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(v));
 
             entity.Property(e => e.CreatedUtc)
                 .HasDefaultValueSql("now() at time zone 'utc'")
@@ -129,6 +61,8 @@ public partial class NotificationDbContext
 
         modelBuilder.Entity<UserNotificationPreference>(entity =>
         {
+            entity.ToTable("user_notification_preferences", "ntf");
+
             entity.HasKey(e => new { e.UserId, e.NotificationType, e.DeliveryChannel });
 
             entity.Property(e => e.UserId)
@@ -143,6 +77,8 @@ public partial class NotificationDbContext
 
         modelBuilder.Entity<DefaultNotificationPreference>(entity =>
         {
+            entity.ToTable("default_notification_preferences", "ntf");
+
             entity.HasKey(e => new { e.NotificationType, e.DeliveryChannel });
 
             entity.Property(e => e.NotificationType)
