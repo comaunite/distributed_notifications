@@ -87,6 +87,8 @@ internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPu
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error producing recipients for notification {CorrelationId}", props.CorrelationId);
+
+                Interlocked.Increment(ref failureCount);
             }
             finally
             {
@@ -163,7 +165,7 @@ internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPu
         if (failureCount > 0)
         {
             var successCount = count - failureCount;
-            var failureRate = count > 0 ? (double)failureCount / (count == 0 ? 1 : count) : 0;
+            var failureRate = count > 0 ? (double)failureCount / (count == 0 ? 1 : count) : 1;
 
             logger.LogWarning(
                 "Notification {CorrelationId} completed with {SuccessCount}/{TotalCount} successes ({FailureRate:P1} failure rate) over {ElapsedMilliseconds} ms",
