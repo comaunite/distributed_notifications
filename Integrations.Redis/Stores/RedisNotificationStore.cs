@@ -33,7 +33,7 @@ public class RedisNotificationStore(INotificationStore inner, IConnectionMultipl
 
         if (await db.KeyExistsAsync(setKey))
         {
-            logger.LogDebug("Streaming cached recipients for {Type}", type);
+            logger.LogInformation("Streaming cached recipients for {Type}", type);
 
             await foreach (var entry in db.SetScanAsync(setKey).WithCancellation(cancellationToken))
             {
