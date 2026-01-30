@@ -5,6 +5,7 @@ using Common.Enums;
 using Microsoft.Extensions.Logging;
 using Persistence.Entities;
 using Persistence.Models;
+using Persistence.Serialization;
 using Persistence.Stores;
 using StackExchange.Redis;
 
@@ -39,7 +40,9 @@ public class RedisNotificationStore(INotificationStore inner, IConnectionMultipl
                 if (cancellationToken.IsCancellationRequested)
                     yield break;
 
-                var recipient = JsonSerializer.Deserialize<NotificationRecipient>(entry.ToString());
+                var recipient = JsonSerializer.Deserialize<NotificationRecipient>(entry.ToString(),
+                    NotificationRecipientSerializationContext.Default.NotificationRecipient);
+
                 if (recipient != null)
                 {
                     yield return recipient;
@@ -56,7 +59,8 @@ public class RedisNotificationStore(INotificationStore inner, IConnectionMultipl
 
         await foreach (var userRecipient in inner.GetNotificationRecipientsAsync(type, cancellationToken))
         {
-            bulkCacheValues[currentIndex++] = JsonSerializer.Serialize(userRecipient);
+            bulkCacheValues[currentIndex++] = JsonSerializer.Serialize(userRecipient,
+                NotificationRecipientSerializationContext.Default.NotificationRecipient);
 
             if (currentIndex >= bulkCacheValues.Length)
             {
