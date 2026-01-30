@@ -3,7 +3,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Integrations.RabbitMQ.Models;
 using Integrations.RabbitMQ.Models.Base;
-using Integrations.RabbitMQ.Models.Interfaces;
 
 namespace Integrations.RabbitMQ.Serialization;
 
@@ -15,7 +14,6 @@ namespace Integrations.RabbitMQ.Serialization;
 [JsonSerializable(typeof(NotifySms))]
 [JsonSerializable(typeof(NotifyEmail))]
 [JsonSerializable(typeof(NotifyPush))]
-[JsonSerializable(typeof(IDeduplicatable))]
 [JsonSerializable(typeof(Dictionary<string, object>))]
 [JsonSerializable(typeof(JsonElement))]
 [JsonSerializable(typeof(object))]

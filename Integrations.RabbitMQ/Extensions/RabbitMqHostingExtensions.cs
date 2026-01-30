@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace Integrations.RabbitMQ.HostingExtensions;
+namespace Integrations.RabbitMQ.Extensions;
 
 [SuppressMessage("ReSharper", "ConvertToExtensionBlock")]
 public static class RabbitMqHostingExtensions

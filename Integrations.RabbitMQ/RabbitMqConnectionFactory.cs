@@ -1,5 +1,5 @@
 ﻿using System.Net.Sockets;
-using Integrations.RabbitMQ.HostingExtensions;
+using Integrations.RabbitMQ.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Polly;

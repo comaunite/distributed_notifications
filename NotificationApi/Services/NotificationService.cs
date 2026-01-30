@@ -1,5 +1,7 @@
-﻿using Integrations.RabbitMQ;
+﻿using System.Text.Json;
+using Integrations.RabbitMQ;
 using Integrations.RabbitMQ.Models;
+using Integrations.RabbitMQ.Serialization;
 using NotificationApi.Models;
 using Persistence.Entities;
 using Persistence.Stores;
@@ -43,7 +45,18 @@ internal sealed class NotificationService(INotificationStore notificationStore, 
             CreatedAt = notification.CreatedUtc,
         };
 
-        var result = await publisher.PublishAsync(message, notification.Id, cancellationToken);
+        var body = JsonSerializer.SerializeToUtf8Bytes(
+            message,
+            typeof(NotificationCreated),
+            NotificationSerializationContext.Default);
+
+        var result = await publisher.PublishAsync(
+            body,
+            null,
+            notification.Id.ToString(),
+            Constants.RoutingKeys.NotificationCreated,
+            true,
+            cancellationToken);
 
         return result;
     }

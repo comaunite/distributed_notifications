@@ -60,6 +60,7 @@ public class RedisNotificationStore(INotificationStore inner, IConnectionMultipl
 
             if (currentIndex >= bulkCacheValues.Length)
             {
+                // Seems to work faster than redis batching
                 await db.SetAddAsync(setKey, bulkCacheValues);
                 currentIndex = 0;
             }

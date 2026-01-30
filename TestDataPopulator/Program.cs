@@ -59,7 +59,7 @@ if (!dbContext.Users.Any())
 {
     Console.WriteLine("Adding users...");
 
-    for (var i = 1; i <= 10000; i++)
+    for (var i = 1; i <= 999000; i++)
     {
         dbContext.Users.Add(new User
         {
@@ -69,6 +69,12 @@ if (!dbContext.Users.Any())
             PhoneNumber = $"+100000000{i:D4}",
             DeviceToken = $"device_token_{i}",
         });
+
+        if (i % 100000 == 0)
+        {
+            await dbContext.SaveChangesAsync();
+            Console.WriteLine($"Added {i} users...");
+        }
     }
 
     await dbContext.SaveChangesAsync();
@@ -77,7 +83,44 @@ if (!dbContext.Users.Any())
 // Add user notification preferences if they do not exist
 if (!dbContext.UserNotificationPreferences.Any())
 {
-    // TODO: Add logic to populate user notification preferences
+    Console.WriteLine("Adding user notification preferences...");
+
+    var userIds = dbContext.Users.OrderBy(u => u.Id).Select(u => u.Id).Take(200000).ToList();
+
+    for (var i = 1; i <= 200000; i++)
+    {
+        var userId = userIds.Skip(i - 1).First();
+
+        dbContext.UserNotificationPreferences.Add(new UserNotificationPreference
+        {
+            UserId = userId,
+            NotificationType = NotificationType.NewPost,
+            DeliveryChannel = DeliveryChannel.Email,
+            IsEnabled = true
+        });
+        dbContext.UserNotificationPreferences.Add(new UserNotificationPreference
+        {
+            UserId = userId,
+            NotificationType = NotificationType.NewPost,
+            DeliveryChannel = DeliveryChannel.Sms,
+            IsEnabled = true
+        });
+        dbContext.UserNotificationPreferences.Add(new UserNotificationPreference
+        {
+            UserId = userId,
+            NotificationType = NotificationType.NewPost,
+            DeliveryChannel = DeliveryChannel.Push,
+            IsEnabled = false
+        });
+
+        if (i % 50000 == 0)
+        {
+            await dbContext.SaveChangesAsync();
+            Console.WriteLine($"Added notification preferences for {i} users...");
+        }
+    }
+
+    await dbContext.SaveChangesAsync();
 }
 
 Console.WriteLine("Test data population completed.");

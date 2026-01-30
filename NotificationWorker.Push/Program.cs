@@ -1,6 +1,6 @@
 ﻿using Hosting.Runtime.Extensions;
 using Integrations.RabbitMQ;
-using Integrations.RabbitMQ.HostingExtensions;
+using Integrations.RabbitMQ.Extensions;
 using Integrations.Redis.HostingExtensions;
 using Microsoft.Extensions.Hosting;
 using NotificationWorker.Push.Handlers;

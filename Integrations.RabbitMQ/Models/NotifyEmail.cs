@@ -1,10 +1,20 @@
 using Integrations.RabbitMQ.Models.Base;
-using Integrations.RabbitMQ.Models.Interfaces;
 
 namespace Integrations.RabbitMQ.Models;
 
-public record NotifyEmail(string DeliveryAddress) : BaseNotification, IDeduplicatable, IDeliverableNotification
+public record NotifyEmail : BaseNotification
 {
-    public Guid DeduplicationId { get; set; }
-    public string DeliveryAddress { get; set; } = DeliveryAddress;
+    public NotifyEmail()
+    {
+
+    }
+
+    public NotifyEmail(BaseNotification message) : base(
+        message.NotificationId,
+        message.Type,
+        message.Metadata,
+        message.CreatedAt)
+    {
+
+    }
 }

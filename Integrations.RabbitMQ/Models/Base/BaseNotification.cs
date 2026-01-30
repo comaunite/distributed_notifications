@@ -11,6 +11,19 @@ namespace Integrations.RabbitMQ.Models.Base;
 [SuppressMessage("Usage", "CA2227:Collection properties should be read only")]
 public record BaseNotification
 {
+    public BaseNotification()
+    {
+
+    }
+
+    public BaseNotification(Guid notificationId, NotificationType type, Dictionary<string, object>? metadata, DateTimeOffset createdAt)
+    {
+        NotificationId = notificationId;
+        Type = type;
+        Metadata = metadata;
+        CreatedAt = createdAt;
+    }
+
     public Guid NotificationId { get; set; }
     public NotificationType Type { get; set; }
     public Dictionary<string, object>? Metadata { get; set; } = [ ];

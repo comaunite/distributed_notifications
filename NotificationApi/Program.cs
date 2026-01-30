@@ -1,6 +1,6 @@
 using Hosting.Extensions;
 using Hosting.Middleware;
-using Integrations.RabbitMQ.HostingExtensions;
+using Integrations.RabbitMQ.Extensions;
 using Integrations.Redis.HostingExtensions;
 using NotificationApi.Models;
 using NotificationApi.Services;
@@ -18,7 +18,7 @@ builder.Services.AddOpenApi();
 
 builder
     .AddRabbitMq<RabbitMQTopology.PublisherTopologyHostedService>()
-    .AddRabbitMqPublisher(options => { options.InitialChannelCount = 10; });
+    .AddRabbitMqPublisher(options => { options.InitialChannelCount = 3; });
 
 builder.Services.AddScoped<INotificationService, NotificationService>();
 

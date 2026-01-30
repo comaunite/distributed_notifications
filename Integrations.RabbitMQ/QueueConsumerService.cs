@@ -1,5 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
-using Integrations.RabbitMQ.HostingExtensions;
+using Integrations.RabbitMQ.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -11,7 +11,8 @@ namespace Integrations.RabbitMQ;
 
 public interface IMessageHandler
 {
-    Task<(bool success, string? error, bool canRetry)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken);
+    Task<(bool success, string? error, bool canRetry)> ProcessAsync(ReadOnlyMemory<byte> body, IReadOnlyBasicProperties props,
+        CancellationToken cancellationToken);
 }
 
 public sealed class QueueConsumerService<T>(IServiceScopeFactory scopeFactory, RabbitMqConnectionFactory connectionFactory,
@@ -101,7 +102,7 @@ public sealed class QueueConsumerService<T>(IServiceScopeFactory scopeFactory, R
 
         try
         {
-            var result = await handler.ProcessAsync(args.Body, args.BasicProperties.CorrelationId, args.CancellationToken);
+            var result = await handler.ProcessAsync(args.Body, args.BasicProperties, args.CancellationToken);
 
             if (!result.success)
             {

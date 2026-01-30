@@ -47,8 +47,8 @@ public class PostgresNotificationStore(IDbContextFactory dbContextFactory) : INo
                              AND p."NotificationType" = d."NotificationType"
                              AND p."DeliveryChannel" = d."DeliveryChannel"
                           WHERE d."NotificationType" = @type
-                            AND d."IsEnabled" = true
-                            AND (p."IsEnabled" IS NULL OR p."IsEnabled" = true)
+                            AND ((d."IsEnabled" = true AND p."IsEnabled" IS NULL)
+                                 OR p."IsEnabled" = true)
                           ORDER BY u."Id";
                           """;
 

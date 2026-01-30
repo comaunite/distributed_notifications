@@ -1,15 +1,18 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Integrations.RabbitMQ;
+using Integrations.RabbitMQ.Extensions;
 using Microsoft.Extensions.Logging;
 using Persistence.Stores;
+using RabbitMQ.Client;
+using Constants = Integrations.RabbitMQ.Constants;
 
 namespace NotificationWorker.Email.Handlers;
 
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 internal sealed class EmailMessageHandler(IDeduplicationStore deduplicationStore, ILogger<EmailMessageHandler> logger) : IMessageHandler
 {
-    public async Task<(bool success, string? error, bool canRetry)> ProcessAsync(ReadOnlyMemory<byte> body, string? correlationId, CancellationToken cancellationToken)
+    public async Task<(bool success, string? error, bool canRetry)> ProcessAsync(ReadOnlyMemory<byte> body, IReadOnlyBasicProperties props, CancellationToken cancellationToken)
     {
         var message = JsonSerializer.Deserialize(body.Span,
             Integrations.RabbitMQ.Serialization.NotificationSerializationContext.Default.NotifyEmail);
@@ -19,7 +22,7 @@ internal sealed class EmailMessageHandler(IDeduplicationStore deduplicationStore
             return (false, "Failed to deserialize Email notification message", false);
         }
 
-        var deduplicationId = message.DeduplicationId.ToString();
+        var deduplicationId = props.Headers!.GetGuid(Constants.HeaderKeys.DeduplicationId).ToString();
 
         if (await deduplicationStore.IsDuplicateAsync(deduplicationId))
         {
@@ -29,7 +32,9 @@ internal sealed class EmailMessageHandler(IDeduplicationStore deduplicationStore
             return (true, null, false);
         }
 
-        logger.LogInformation("Processing Email Notification: {NotificationId} to {EmailAddress}", message.NotificationId, message.DeliveryAddress);
+        var deliveryAddress = props.Headers!.GetString(Constants.HeaderKeys.DeliveryAddress);
+
+        logger.LogInformation("Processing Email Notification: {NotificationId} to {EmailAddress}", message.NotificationId, deliveryAddress);
 
         await deduplicationStore.MarkAsProcessedAsync(deduplicationId);
 

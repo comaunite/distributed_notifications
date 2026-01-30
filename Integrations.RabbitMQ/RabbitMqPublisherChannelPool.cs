@@ -33,8 +33,6 @@ public sealed class RabbitMqPublisherChannelPool(RabbitMqConnectionFactory conne
     [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Disposed in DisposeAsync")]
     public async ValueTask<RentedChannel> RentChannelAsync(CancellationToken cancellationToken)
     {
-        logger.LogInformation("Renting RabbitMq Channel from pool...");
-
         if (channels.TryPop(out var channel) && channel.IsOpen)
         {
             return new RentedChannel(channel, this);
@@ -70,7 +68,7 @@ public sealed class RabbitMqPublisherChannelPool(RabbitMqConnectionFactory conne
 
         var parallelOptions = new ParallelOptions
         {
-            MaxDegreeOfParallelism = Environment.ProcessorCount,
+            MaxDegreeOfParallelism = Environment.ProcessorCount * 10,
             CancellationToken = cancellationToken
         };
 
@@ -78,6 +76,7 @@ public sealed class RabbitMqPublisherChannelPool(RabbitMqConnectionFactory conne
         {
             var channel = await SpawnChannelAsync(ct);
 
+            logger.LogInformation("RabbitMq Channel Pool warmup created channel {ChannelId}.", channel.ChannelNumber);
             channels.Push(channel);
         });
 
@@ -88,14 +87,10 @@ public sealed class RabbitMqPublisherChannelPool(RabbitMqConnectionFactory conne
     {
         if (channel.IsOpen)
         {
-            logger.LogInformation("Returning RabbitMq Channel to pool...");
-
             channels.Push(channel);
         }
         else
         {
-            logger.LogInformation("RabbitMq Channel is closed, disposing...");
-
             await channel.DisposeAsync();
         }
     }

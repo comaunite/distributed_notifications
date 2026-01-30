@@ -1,6 +1,6 @@
 ﻿using Hosting.Runtime.Extensions;
 using Integrations.RabbitMQ;
-using Integrations.RabbitMQ.HostingExtensions;
+using Integrations.RabbitMQ.Extensions;
 using Integrations.Redis.HostingExtensions;
 using Microsoft.Extensions.Hosting;
 using NotificationOrchestrator.Services;
@@ -21,7 +21,7 @@ builder
         // So we should process one message at a time. Prefer horizontal scaling to process more instead.
         options.PrefetchCount = 1;
     })
-    .AddRabbitMqPublisher(publisherOptions => { publisherOptions.InitialChannelCount = 10; });
+    .AddRabbitMqPublisher(publisherOptions => { publisherOptions.InitialChannelCount = 16; });
 
 builder.AddPostgresDatabase();
 

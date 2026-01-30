@@ -19,4 +19,10 @@ public static class Constants
         public const string SmsWorker = "notifications.worker.sms";
         public const string PushWorker = "notifications.worker.push";
     }
+
+    public static class HeaderKeys
+    {
+        public const string DeliveryAddress = "X-Delivery-Address";
+        public const string DeduplicationId = "X-Deduplication-Id";
+    }
 }
