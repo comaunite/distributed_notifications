@@ -1,8 +1,9 @@
 # Distributed Notification System
+Disclaimer: This is a sample project I wrote for learning and demonstration purposes. There's plenty of unpolished edges and tradeoff decisions.
+E.g. skipping NoSQL for simplicity, not implementing full retry policies, etc.
+
 A high-throughput, event-driven notification engine built with **.NET 10**, **RabbitMQ**, **PostgreSQL**, and **Redis**.
 This project demonstrates a scalable architecture for processing massive volumes of notifications across multiple delivery channels (Email, SMS, Push).
-
-Note: I skipped the NoSQL database for simplicity's sake, but it can be easily integrated for storing notification history or analytics.
 
 ## 🚀 Workload Architecture
 The system is designed around a "Fan-Out" pattern to ensure that the ingestion of a notification request is decoupled from the actual delivery logic.
