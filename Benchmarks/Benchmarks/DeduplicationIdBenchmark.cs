@@ -22,9 +22,21 @@ public class DeduplicationIdBenchmark
     }
 
     [Benchmark]
-    public Guid DeterministicGuid()
+    public string DeterministicGuidToString()
     {
-        return GuidHelper.CreateDeterministic(notificationId, userId, deliveryChannel);
+        var guid = GuidHelper.CreateDeterministic(notificationId, userId, deliveryChannel);
+
+        return guid.ToString();
+    }
+
+    [Benchmark]
+    public string DeterministicGuidToByteArrayThenToString()
+    {
+        var guid = GuidHelper.CreateDeterministic(notificationId, userId, deliveryChannel);
+
+        var bytes = guid.ToByteArray();
+
+        return new Guid(bytes).ToString();
     }
 
     [Benchmark]

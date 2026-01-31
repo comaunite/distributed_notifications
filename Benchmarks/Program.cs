@@ -3,6 +3,6 @@
 using BenchmarkDotNet.Running;
 using Benchmarks.Benchmarks;
 
-Console.WriteLine("100kg BENCH or GO HOME!");
+Console.WriteLine("100kg BENCHmark or GO HOME!");
 
 BenchmarkRunner.Run<DeduplicationIdBenchmark>();

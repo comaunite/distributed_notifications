@@ -62,12 +62,9 @@ internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPu
         CancellationToken cancellationToken)
     {
         var result = new ResultModel();
-
         var timer = Stopwatch.StartNew();
 
         var templateCache = InitializeTemplateCache(message);
-
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         var channel = Channel.CreateBounded<NotificationRecipient>(new BoundedChannelOptions(1000)
         {
@@ -75,6 +72,8 @@ internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPu
             SingleReader = false,
             SingleWriter = true
         });
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         try
         {
