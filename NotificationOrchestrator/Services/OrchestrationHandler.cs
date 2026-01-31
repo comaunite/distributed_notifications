@@ -2,13 +2,13 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Threading.Channels;
-using Common;
 using Common.Enums;
 using Integrations.RabbitMQ;
 using Integrations.RabbitMQ.Models;
 using Integrations.RabbitMQ.Models.Base;
 using Integrations.RabbitMQ.Serialization;
 using Microsoft.Extensions.Logging;
+using NotificationOrchestrator.Models;
 using Persistence.Models;
 using Persistence.Stores;
 using RabbitMQ.Client;
@@ -61,10 +61,13 @@ internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPu
     private async Task<(bool success, string? error, bool canRetry)> ProcessAndFanOutAsync(BaseNotification message, IReadOnlyBasicProperties props,
         CancellationToken cancellationToken)
     {
-        var count = 0;
-        var failureCount = 0;
+        var result = new ResultModel();
+
+        var timer = Stopwatch.StartNew();
 
         var templateCache = InitializeTemplateCache(message);
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         var channel = Channel.CreateBounded<NotificationRecipient>(new BoundedChannelOptions(1000)
         {
@@ -73,8 +76,56 @@ internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPu
             SingleWriter = true
         });
 
-        var timer = Stopwatch.StartNew();
+        try
+        {
+            var producer = GetProducerTask(channel, message, props.CorrelationId, cts.Token);
+            var consumers = GetConsumerTasks(channel, message, props.CorrelationId, templateCache, result, timer, cts.Token);
 
+            await Task.WhenAll(consumers.Append(producer));
+        }
+        catch (Exception ex)
+        {
+            await cts.CancelAsync();
+
+            logger.LogError(ex, "Error during fan-out for {CorrelationId}", props.CorrelationId);
+
+            return (false, ex.Message, true);
+        }
+
+        timer.Stop();
+
+        if (result.FailureCount > 0)
+        {
+            var successCount = result.TotalCount - result.FailureCount;
+            var failureRate = result.TotalCount > 0
+                ? (double)result.FailureCount / (result.TotalCount == 0 ? 1 : result.TotalCount)
+                : 1;
+
+            logger.LogWarning(
+                "Notification {CorrelationId} completed with {SuccessCount}/{TotalCount} successes ({FailureRate:P1} failure rate) over {ElapsedMilliseconds} ms",
+                props.CorrelationId, successCount, result.TotalCount, failureRate, timer.ElapsedMilliseconds);
+
+            // Decide if partial failure should fail the entire operation
+            if (failureRate > 0.5)
+            {
+                return (false, $"High failure rate: {result.FailureCount}/{result.TotalCount} recipients failed", false);
+            }
+
+            // Failures are likely due to some bug or infrastructure issue
+            // There are ways to optimize this further, if we have a partial success.
+            // That would help avoid retrying for those messages that were queued successfully (e.g. problem with a specific channel)
+            // Can be checked via deduplication id before publishing, but for now we keep it simple.
+            return (false, $"Partial failure: {result.FailureCount}/{result.TotalCount} recipients failed", true);
+        }
+
+        logger.LogInformation("Successfully orchestrated notification {CorrelationId} to {RecipientCount} recipients over {ElapsedMilliseconds} ms",
+            props.CorrelationId, result.TotalCount, timer.ElapsedMilliseconds);
+
+        return (true, null, false);
+    }
+
+    private Task GetProducerTask(Channel<NotificationRecipient> channel, BaseNotification message, string? correlationId, CancellationToken cancellationToken)
+    {
         var producer = Task.Run(async () =>
         {
             try
@@ -86,40 +137,44 @@ internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPu
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error producing recipients for notification {CorrelationId}", props.CorrelationId);
+                logger.LogError(ex, "Error producing recipients for notification {CorrelationId}", correlationId);
 
-                Interlocked.Increment(ref failureCount);
+                throw;
             }
             finally
             {
-                logger.LogInformation("Completed producing recipients for notification {CorrelationId}", props.CorrelationId);
-
                 channel.Writer.Complete();
             }
         }, cancellationToken);
+        return producer;
+    }
 
+    private IEnumerable<Task> GetConsumerTasks(Channel<NotificationRecipient> channel, BaseNotification message, string? correlationId,
+        Dictionary<DeliveryChannel, byte[]> templateCache, ResultModel result, Stopwatch timer, CancellationToken cancellationToken)
+    {
         var consumers = Enumerable.Range(0, 16).Select(async _ =>
         {
             await using var rabbitMqChannel = await publisherChannelPool.RentChannelAsync(cancellationToken);
+
             var headers = new Dictionary<string, object?>(2);
             var basicProperties = new BasicProperties
             {
                 Persistent = false,
                 ContentType = "application/json",
-                CorrelationId = props.CorrelationId,
+                CorrelationId = correlationId,
             };
 
             await foreach (var recipient in channel.Reader.ReadAllAsync(cancellationToken))
             {
                 if (templateCache.TryGetValue(recipient.DeliveryChannel, out var template))
                 {
-                    var deduplicationId = GuidHelper.CreateDeterministic(
-                        message.NotificationId,
-                        recipient.UserId,
-                        (int)recipient.DeliveryChannel);
+                    // var deduplicationId = GuidHelper.CreateDeterministic(
+                    //     message.NotificationId,
+                    //     recipient.UserId,
+                    //     (int)recipient.DeliveryChannel);
 
                     headers[Constants.HeaderKeys.DeliveryAddress] = recipient.DeliveryAddress;
-                    headers[Constants.HeaderKeys.DeduplicationId] = deduplicationId.ToString();
+                    headers[Constants.HeaderKeys.DeduplicationId] = $"{message.NotificationId:N}-{recipient.UserId:N}-{(int)recipient.DeliveryChannel}";
 
                     basicProperties.Headers = headers;
 
@@ -134,61 +189,30 @@ internal sealed class OrchestrationHandler(INotificationStore store, IRabbitMqPu
                     if (!success)
                     {
                         logger.LogError("Failed to publish {CorrelationId} to {Channel} for {UserId}: {Error}",
-                            props.CorrelationId, recipient.DeliveryChannel, recipient.UserId, error);
+                            correlationId, recipient.DeliveryChannel, recipient.UserId, error);
 
-                        Interlocked.Increment(ref failureCount);
+                        result.IncrementFailure();
                     }
                 }
                 else
                 {
                     logger.LogWarning("Failed to map notification {CorrelationId} for user {UserId} and channel {Channel}",
-                        props.CorrelationId, recipient.UserId, recipient.DeliveryChannel);
+                        correlationId, recipient.UserId, recipient.DeliveryChannel);
 
-                    Interlocked.Increment(ref failureCount);
+                    result.IncrementFailure();
                 }
 
-                Interlocked.Increment(ref count);
+                result.IncrementTotal();
 
-                if (count % 100000 == 0)
+                if (result.TotalCount % 100000 == 0)
                 {
                     logger.LogInformation("Orchestrated notification {CorrelationId} to {Count} recipients over {ElapsedMilliseconds} ms",
-                        props.CorrelationId, count, timer.ElapsedMilliseconds);
+                        correlationId, result.TotalCount, timer.ElapsedMilliseconds);
                 }
             }
         });
 
-        await Task.WhenAll(consumers);
-        await producer;
-
-        timer.Stop();
-
-        if (failureCount > 0)
-        {
-            var successCount = count - failureCount;
-            var failureRate = count > 0 ? (double)failureCount / (count == 0 ? 1 : count) : 1;
-
-            logger.LogWarning(
-                "Notification {CorrelationId} completed with {SuccessCount}/{TotalCount} successes ({FailureRate:P1} failure rate) over {ElapsedMilliseconds} ms",
-                props.CorrelationId, successCount, count, failureRate, timer.ElapsedMilliseconds);
-
-            // Decide if partial failure should fail the entire operation
-            // More than 50% failed
-            if (failureRate > 0.5)
-            {
-                return (false, $"High failure rate: {failureCount}/{count} recipients failed", false);
-            }
-
-            // Failures are likely due to some bug or infrastructure issue
-            // There are ways to optimize this further, if we have a partial success.
-            // That would help avoid retrying for those messages that were queued successfully (e.g. problem with a specific channel)
-            // Can be checked via deduplication id before publishing, but for now we keep it simple.
-            return (false, $"Partial failure: {failureCount}/{count} recipients failed", true);
-        }
-
-        logger.LogInformation("Successfully orchestrated notification {CorrelationId} to {RecipientCount} recipients over {ElapsedMilliseconds} ms",
-            props.CorrelationId, count, timer.ElapsedMilliseconds);
-
-        return (true, null, false);
+        return consumers;
     }
 
     private static Dictionary<DeliveryChannel, byte[]> InitializeTemplateCache(BaseNotification message)

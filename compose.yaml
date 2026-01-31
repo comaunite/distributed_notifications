@@ -116,51 +116,51 @@ services:
       # noinspection ComposeUnknownValues
       <<: [ *rabbit-env, *db-env, *redis-env ]
 
-  notificationworkeremail:
-    image: notificationworker
-    build:
-      context: .
-      dockerfile: NotificationWorker.Email/Dockerfile
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-      dbmigrator:
-        condition: service_completed_successfully
-    environment:
-      # noinspection ComposeUnknownValues
-      <<: [ *rabbit-env, *redis-env ]
-
-  notificationworkersms:
-    image: notificationworker
-    build:
-      context: .
-      dockerfile: NotificationWorker.SMS/Dockerfile
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      dbmigrator:
-        condition: service_completed_successfully
-    environment:
-      # noinspection ComposeUnknownValues
-      <<: [ *rabbit-env, *redis-env ]
-
-  notificationworkerpush:
-    image: notificationworker
-    build:
-      context: .
-      dockerfile: NotificationWorker.Push/Dockerfile
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      dbmigrator:
-        condition: service_completed_successfully
-    environment:
-      # noinspection ComposeUnknownValues
-      <<: [ *rabbit-env, *redis-env ]
+#  notificationworkeremail:
+#    image: notificationworker
+#    build:
+#      context: .
+#      dockerfile: NotificationWorker.Email/Dockerfile
+#    depends_on:
+#      rabbitmq:
+#        condition: service_healthy
+#      dbmigrator:
+#        condition: service_completed_successfully
+#    environment:
+#      # noinspection ComposeUnknownValues
+#      <<: [ *rabbit-env, *redis-env ]
+#
+#  notificationworkersms:
+#    image: notificationworker
+#    build:
+#      context: .
+#      dockerfile: NotificationWorker.SMS/Dockerfile
+#    depends_on:
+#      rabbitmq:
+#        condition: service_healthy
+#      redis:
+#        condition: service_healthy
+#      dbmigrator:
+#        condition: service_completed_successfully
+#    environment:
+#      # noinspection ComposeUnknownValues
+#      <<: [ *rabbit-env, *redis-env ]
+#
+#  notificationworkerpush:
+#    image: notificationworker
+#    build:
+#      context: .
+#      dockerfile: NotificationWorker.Push/Dockerfile
+#    depends_on:
+#      rabbitmq:
+#        condition: service_healthy
+#      redis:
+#        condition: service_healthy
+#      dbmigrator:
+#        condition: service_completed_successfully
+#    environment:
+#      # noinspection ComposeUnknownValues
+#      <<: [ *rabbit-env, *redis-env ]
 
 volumes:
   postgres_data:
