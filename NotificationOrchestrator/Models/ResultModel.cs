@@ -1,6 +1,6 @@
 namespace NotificationOrchestrator.Models;
 
-internal class ResultModel
+internal sealed class ResultModel
 {
     private int totalCount;
     private int failureCount;

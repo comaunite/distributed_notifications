@@ -40,6 +40,22 @@ public sealed class OrchestratorTopologyHostedService(RabbitMqConnectionFactory 
             exchange: Exchange,
             routingKey: RoutingKey,
             cancellationToken: cancellationToken);
+
+
+        // Initialize dependency worker topologies
+        // I need this to ensure I have routing keys and queues created,
+        // when I'm running without workers to conserve CPU
+        var workers = new List<IHostedService>
+        {
+            new EmailWorkerTopologyHostedService(connectionFactory),
+            new SmsWorkerTopologyHostedService(connectionFactory),
+            new PushWorkerTopologyHostedService(connectionFactory)
+        };
+
+        foreach (var worker in workers)
+        {
+            await worker.StartAsync(cancellationToken);
+        }
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
